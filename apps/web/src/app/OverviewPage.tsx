@@ -48,11 +48,11 @@ export function OverviewPage() {
     <div>
       <div className="mb-8 flex items-end justify-between">
         <div>
-          <p className="mb-1 text-xs font-semibold uppercase tracking-[0.14em] text-blue-600">Knowledge base</p>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Your technical workspace</h1>
-          <p className="mt-1.5 text-sm text-slate-500">Documents and notes stay searchable on this device.</p>
+          <p className="mb-1 text-xs font-semibold uppercase tracking-[0.14em] text-coral-600">Knowledge base</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-violet-950">Your technical workspace</h1>
+          <p className="mt-1.5 text-sm text-violet-500">Documents and notes stay searchable on this device.</p>
         </div>
-        <Link to="/documents" className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700">
+        <Link to="/documents" className="rounded-xl bg-coral-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-coral-600 hover:-translate-y-0.5">
           Import document
         </Link>
       </div>
@@ -63,16 +63,16 @@ export function OverviewPage() {
           { label: 'Notes', value: state.notes.length, icon: StickyNote },
           { label: 'Categories', value: categories, icon: Library },
         ].map(({ label, value, icon: Icon }) => (
-          <div key={label} className="rounded-xl border border-slate-200 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
-            <div className="mb-4 flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-600"><Icon size={17} /></div>
-            <div className="text-2xl font-semibold text-slate-900">{value}</div>
-            <div className="mt-0.5 text-xs font-medium text-slate-500">{label}</div>
+          <div key={label} className="rounded-2xl border border-violet-100 bg-white p-5 shadow-[0_4px_16px_rgba(82,65,168,0.06)] transition hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(82,65,168,0.10)]">
+            <div className="mb-4 flex h-9 w-9 items-center justify-center rounded-xl bg-violet-100 text-violet-600"><Icon size={17} /></div>
+            <div className="text-2xl font-semibold text-violet-950">{value}</div>
+            <div className="mt-0.5 text-xs font-medium text-violet-500">{label}</div>
           </div>
         ))}
       </div>
 
       <div className="mt-6 grid grid-cols-[1.5fr_1fr] gap-6">
-        <section className="rounded-xl border border-slate-200 bg-white">
+        <section className="rounded-2xl border border-violet-100 bg-white">
           <div className="border-b border-slate-100 px-5 py-4">
             <h2 className="text-sm font-semibold text-slate-800">Recently updated</h2>
           </div>
@@ -100,7 +100,7 @@ export function OverviewPage() {
           )}
         </section>
 
-        <section className="rounded-xl border border-slate-200 bg-white p-5">
+        <section className="rounded-2xl border border-violet-100 bg-white p-5">
           <div className="flex items-center gap-2 text-sm font-semibold text-slate-800"><Search size={16} /> Search syntax</div>
           <p className="mt-2 text-xs leading-5 text-slate-500">Full-text search covers document contents, notes, categories, tags and version labels.</p>
           <div className="mt-5 space-y-3 text-xs">

@@ -76,6 +76,42 @@ export const searchResponseSchema = z.object({
   results: z.array(searchResultSchema),
 });
 
+export const integrationFolderSchema = z.object({
+  id: entityIdSchema,
+  name: z.string(),
+  parentId: entityIdSchema.nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+export const integrationEntrySchema = z.object({
+  id: entityIdSchema,
+  folderId: entityIdSchema,
+  title: z.string(),
+  description: z.string(),
+  url: z.string().nullable(),
+  attachment: z.object({
+    originalFilename: z.string(),
+    mimeType: z.string(),
+    fileSize: z.number().int().nonnegative(),
+  }).nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+export const createIntegrationFolderSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  parentId: entityIdSchema.nullable().default(null),
+});
+
+export const createIntegrationEntrySchema = z.object({
+  folderId: entityIdSchema,
+  title: z.string().trim().min(1).max(240),
+  description: z.string().trim().max(20_000).default(''),
+  url: z.union([z.url(), z.literal(''), z.null()]).default(null)
+    .transform((value) => value || null),
+});
+
 export type Tag = z.infer<typeof tagSchema>;
 export type Category = z.infer<typeof categorySchema>;
 export type DocumentRecord = z.infer<typeof documentSchema>;
@@ -85,3 +121,7 @@ export type Note = z.infer<typeof noteSchema>;
 export type ImportDocumentFields = z.infer<typeof importDocumentFieldsSchema>;
 export type SearchResult = z.infer<typeof searchResultSchema>;
 export type SearchResponse = z.infer<typeof searchResponseSchema>;
+export type IntegrationFolder = z.infer<typeof integrationFolderSchema>;
+export type IntegrationEntry = z.infer<typeof integrationEntrySchema>;
+export type CreateIntegrationFolderInput = z.infer<typeof createIntegrationFolderSchema>;
+export type CreateIntegrationEntryInput = z.infer<typeof createIntegrationEntrySchema>;

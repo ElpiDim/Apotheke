@@ -2,6 +2,7 @@ import express from 'express';
 import { taxonomyRouter } from './features/categories/routes.js';
 import { documentsRouter } from './features/documents/routes.js';
 import { notesRouter } from './features/notes/routes.js';
+import { integrationsRouter } from './features/integrations/routes.js';
 import { searchRouter } from './features/search/routes.js';
 import { systemRouter } from './features/system/routes.js';
 import { errorHandler } from './middleware/errors.js';
@@ -14,6 +15,7 @@ export function createApp(): express.Express {
   app.use('/api', systemRouter);
   app.use('/api/documents', documentsRouter);
   app.use('/api/notes', notesRouter);
+  app.use('/api/integrations', integrationsRouter);
   app.use('/api/search', searchRouter);
   app.use('/api', taxonomyRouter);
 

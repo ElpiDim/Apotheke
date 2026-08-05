@@ -83,4 +83,43 @@ export const migrations: readonly Migration[] = [
       CREATE INDEX document_versions_document_idx ON document_versions(document_id);
     `,
   },
+  {
+    id: 2,
+    name: 'integration_workspace',
+    sql: `
+      CREATE TABLE integration_folders (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        parent_id TEXT REFERENCES integration_folders(id) ON DELETE CASCADE,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+
+      CREATE TABLE integration_entries (
+        id TEXT PRIMARY KEY,
+        folder_id TEXT NOT NULL REFERENCES integration_folders(id) ON DELETE CASCADE,
+        title TEXT NOT NULL,
+        description TEXT NOT NULL DEFAULT '',
+        url TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+
+      CREATE INDEX integration_folders_parent_idx ON integration_folders(parent_id);
+      CREATE INDEX integration_entries_folder_idx ON integration_entries(folder_id, updated_at DESC);
+    `,
+  },
+  {
+    id: 3,
+    name: 'integration_pdf_attachments',
+    sql: `
+      ALTER TABLE integration_entries ADD COLUMN original_filename TEXT;
+      ALTER TABLE integration_entries ADD COLUMN stored_filename TEXT;
+      ALTER TABLE integration_entries ADD COLUMN mime_type TEXT;
+      ALTER TABLE integration_entries ADD COLUMN file_size INTEGER CHECK (file_size IS NULL OR file_size >= 0);
+      CREATE UNIQUE INDEX integration_entries_stored_file_idx
+        ON integration_entries(stored_filename)
+        WHERE stored_filename IS NOT NULL;
+    `,
+  },
 ];

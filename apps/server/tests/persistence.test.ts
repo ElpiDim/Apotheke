@@ -5,6 +5,13 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { openDatabase, type ApothekeDatabase } from '../src/database/database.js';
 import { createDocument } from '../src/features/documents/documentRepository.js';
 import { createNote, deleteNote } from '../src/features/notes/noteRepository.js';
+import {
+  createIntegrationEntry,
+  createIntegrationFolder,
+  deleteIntegrationFolder,
+  listIntegrationEntries,
+  listIntegrationFolders,
+} from '../src/features/integrations/integrationRepository.js';
 import { search } from '../src/features/search/searchService.js';
 
 describe('local knowledge persistence', () => {
@@ -52,5 +59,23 @@ describe('local knowledge persistence', () => {
     const phraseResults = search(database, '"Debit transactions"');
     expect(phraseResults[0]?.entityId).toBe(document.id);
     expect(search(database, '2.4')[0]?.entityId).toBe(document.id);
+  });
+
+  it('stores nested integration folders and cascades their entries', () => {
+    const parent = createIntegrationFolder(database, { name: 'Platforms', parentId: null });
+    const child = createIntegrationFolder(database, { name: 'Payments', parentId: parent.id });
+    createIntegrationEntry(database, {
+      folderId: child.id,
+      title: 'Stripe dashboard',
+      description: 'Test environment',
+      url: 'https://dashboard.stripe.com',
+    });
+
+    expect(listIntegrationFolders(database)).toHaveLength(2);
+    expect(listIntegrationEntries(database)[0]?.folderId).toBe(child.id);
+
+    deleteIntegrationFolder(database, parent.id);
+    expect(listIntegrationFolders(database)).toHaveLength(0);
+    expect(listIntegrationEntries(database)).toHaveLength(0);
   });
 });

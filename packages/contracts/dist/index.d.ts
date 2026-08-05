@@ -97,6 +97,37 @@ export declare const searchResponseSchema: z.ZodObject<{
         updatedAt: z.ZodString;
     }, z.core.$strip>>;
 }, z.core.$strip>;
+export declare const integrationFolderSchema: z.ZodObject<{
+    id: z.ZodString;
+    name: z.ZodString;
+    parentId: z.ZodNullable<z.ZodString>;
+    createdAt: z.ZodString;
+    updatedAt: z.ZodString;
+}, z.core.$strip>;
+export declare const integrationEntrySchema: z.ZodObject<{
+    id: z.ZodString;
+    folderId: z.ZodString;
+    title: z.ZodString;
+    description: z.ZodString;
+    url: z.ZodNullable<z.ZodString>;
+    attachment: z.ZodNullable<z.ZodObject<{
+        originalFilename: z.ZodString;
+        mimeType: z.ZodString;
+        fileSize: z.ZodNumber;
+    }, z.core.$strip>>;
+    createdAt: z.ZodString;
+    updatedAt: z.ZodString;
+}, z.core.$strip>;
+export declare const createIntegrationFolderSchema: z.ZodObject<{
+    name: z.ZodString;
+    parentId: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+}, z.core.$strip>;
+export declare const createIntegrationEntrySchema: z.ZodObject<{
+    folderId: z.ZodString;
+    title: z.ZodString;
+    description: z.ZodDefault<z.ZodString>;
+    url: z.ZodPipe<z.ZodDefault<z.ZodUnion<readonly [z.ZodURL, z.ZodLiteral<"">, z.ZodNull]>>, z.ZodTransform<string | null, string | null>>;
+}, z.core.$strip>;
 export type Tag = z.infer<typeof tagSchema>;
 export type Category = z.infer<typeof categorySchema>;
 export type DocumentRecord = z.infer<typeof documentSchema>;
@@ -106,4 +137,8 @@ export type Note = z.infer<typeof noteSchema>;
 export type ImportDocumentFields = z.infer<typeof importDocumentFieldsSchema>;
 export type SearchResult = z.infer<typeof searchResultSchema>;
 export type SearchResponse = z.infer<typeof searchResponseSchema>;
+export type IntegrationFolder = z.infer<typeof integrationFolderSchema>;
+export type IntegrationEntry = z.infer<typeof integrationEntrySchema>;
+export type CreateIntegrationFolderInput = z.infer<typeof createIntegrationFolderSchema>;
+export type CreateIntegrationEntryInput = z.infer<typeof createIntegrationEntrySchema>;
 //# sourceMappingURL=index.d.ts.map
