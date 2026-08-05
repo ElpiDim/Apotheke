@@ -4,9 +4,12 @@ import type {
   CreateIntegrationFolderInput,
   IntegrationEntry,
   IntegrationFolder,
+  UpdateIntegrationEntryInput,
+  UpdateIntegrationFolderInput,
 } from '@apotheke/contracts';
 import type { ApothekeDatabase } from '../../database/database.js';
 import { AppError } from '../../middleware/errors.js';
+import { reindexIntegrationEntry, removeFromIndex } from '../search/indexer.js';
 
 interface FolderRow {
   id: string;
@@ -85,9 +88,56 @@ export function createIntegrationFolder(
   return { id, name: input.name, parentId: input.parentId, createdAt: now, updatedAt: now };
 }
 
+export function updateIntegrationFolder(
+  database: ApothekeDatabase,
+  id: string,
+  input: UpdateIntegrationFolderInput,
+): IntegrationFolder {
+  requireFolder(database, id);
+  const current = listIntegrationFolders(database).find((folder) => folder.id === id)!;
+  const nextParentId = input.parentId === undefined ? current.parentId : input.parentId;
+  if (nextParentId === id) throw new AppError(400, 'A folder cannot contain itself.', 'INVALID_FOLDER_PARENT');
+  if (nextParentId) {
+    requireFolder(database, nextParentId);
+    const descendants = database.prepare(`
+      WITH RECURSIVE descendants(id) AS (
+        SELECT id FROM integration_folders WHERE parent_id = ?
+        UNION ALL
+        SELECT f.id FROM integration_folders f JOIN descendants d ON f.parent_id = d.id
+      ) SELECT id FROM descendants
+    `).all(id) as { id: string }[];
+    if (descendants.some((folder) => folder.id === nextParentId)) {
+      throw new AppError(400, 'A folder cannot be moved inside one of its subfolders.', 'INVALID_FOLDER_PARENT');
+    }
+  }
+  const now = new Date().toISOString();
+  database.prepare('UPDATE integration_folders SET name = ?, parent_id = ?, updated_at = ? WHERE id = ?')
+    .run(input.name ?? current.name, nextParentId, now, id);
+  const updated = listIntegrationFolders(database).find((folder) => folder.id === id)!;
+  const entryIds = database.prepare(`
+    WITH RECURSIVE folder_tree(id) AS (
+      SELECT id FROM integration_folders WHERE id = ?
+      UNION ALL SELECT f.id FROM integration_folders f JOIN folder_tree tree ON f.parent_id = tree.id
+    ) SELECT id FROM integration_entries WHERE folder_id IN (SELECT id FROM folder_tree)
+  `).all(id) as { id: string }[];
+  for (const entry of entryIds) reindexIntegrationEntry(database, entry.id);
+  return updated;
+}
+
 export function deleteIntegrationFolder(database: ApothekeDatabase, id: string): void {
   requireFolder(database, id);
-  database.prepare('DELETE FROM integration_folders WHERE id = ?').run(id);
+  database.transaction(() => {
+    const entryIds = database.prepare(`
+      WITH RECURSIVE folder_tree(id) AS (
+        SELECT id FROM integration_folders WHERE id = ?
+        UNION ALL
+        SELECT f.id FROM integration_folders f JOIN folder_tree tree ON f.parent_id = tree.id
+      )
+      SELECT id FROM integration_entries WHERE folder_id IN (SELECT id FROM folder_tree)
+    `).all(id) as { id: string }[];
+    for (const entry of entryIds) removeFromIndex(database, 'integration', entry.id);
+    database.prepare('DELETE FROM integration_folders WHERE id = ?').run(id);
+  })();
 }
 
 export function createIntegrationEntry(
@@ -101,7 +151,33 @@ export function createIntegrationEntry(
     INSERT INTO integration_entries (id, folder_id, title, description, url, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `).run(id, input.folderId, input.title, input.description, input.url, now, now);
+  reindexIntegrationEntry(database, id);
   return { id, folderId: input.folderId, title: input.title, description: input.description, url: input.url, attachment: null, createdAt: now, updatedAt: now };
+}
+
+export function updateIntegrationEntry(
+  database: ApothekeDatabase,
+  id: string,
+  input: UpdateIntegrationEntryInput,
+): IntegrationEntry {
+  const current = listIntegrationEntries(database).find((entry) => entry.id === id);
+  if (!current) throw new AppError(404, 'Integration entry not found.', 'INTEGRATION_ENTRY_NOT_FOUND');
+  const folderId = input.folderId ?? current.folderId;
+  requireFolder(database, folderId);
+  database.prepare(`
+    UPDATE integration_entries
+    SET folder_id = ?, title = ?, description = ?, url = ?, updated_at = ?
+    WHERE id = ?
+  `).run(
+    folderId,
+    input.title ?? current.title,
+    input.description ?? current.description,
+    input.url === undefined ? current.url : input.url,
+    new Date().toISOString(),
+    id,
+  );
+  reindexIntegrationEntry(database, id);
+  return listIntegrationEntries(database).find((entry) => entry.id === id)!;
 }
 
 export interface IntegrationPdfInput {
@@ -123,6 +199,7 @@ export function createIntegrationPdf(database: ApothekeDatabase, input: Integrat
       mime_type, file_size, created_at, updated_at
     ) VALUES (?, ?, ?, ?, NULL, ?, ?, 'application/pdf', ?, ?, ?)
   `).run(id, input.folderId, input.title, input.description, input.originalFilename, input.storedFilename, input.fileSize, now, now);
+  reindexIntegrationEntry(database, id);
   return {
     id,
     folderId: input.folderId,
@@ -159,8 +236,12 @@ export function listStoredFilesInFolderTree(database: ApothekeDatabase, folderId
 }
 
 export function deleteIntegrationEntry(database: ApothekeDatabase, id: string): void {
-  const result = database.prepare('DELETE FROM integration_entries WHERE id = ?').run(id);
-  if (result.changes === 0) {
+  const exists = database.prepare('SELECT 1 FROM integration_entries WHERE id = ?').get(id);
+  if (!exists) {
     throw new AppError(404, 'Integration entry not found.', 'INTEGRATION_ENTRY_NOT_FOUND');
   }
+  database.transaction(() => {
+    removeFromIndex(database, 'integration', id);
+    database.prepare('DELETE FROM integration_entries WHERE id = ?').run(id);
+  })();
 }

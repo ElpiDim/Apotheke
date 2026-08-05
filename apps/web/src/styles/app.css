@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-blue-50: #f3f0ff;
   --color-blue-100: #e8e2ff;
@@ -16,7 +18,148 @@
   background: #fffaf3;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+  --apotheke-canvas: #fffaf3;
+  --apotheke-surface: #ffffff;
+  --apotheke-border: #eee7f7;
+  --apotheke-ink: #2f2941;
+  --apotheke-muted: #786d91;
 }
+
+.dark {
+  color-scheme: dark;
+  color: #f5f3ff;
+  background: #171329;
+  --apotheke-canvas: #171329;
+  --apotheke-surface: #211b35;
+  --apotheke-border: #463b64;
+  --apotheke-ink: #f5f3ff;
+  --apotheke-muted: #b9add3;
+}
+
+body {
+  background:
+    radial-gradient(circle at 88% 4%, rgb(232 226 255 / 55%), transparent 26rem),
+    radial-gradient(circle at 20% 100%, rgb(255 224 216 / 42%), transparent 30rem),
+    var(--apotheke-canvas);
+  color: var(--apotheke-ink);
+}
+
+.dark body {
+  background:
+    radial-gradient(circle at 88% 4%, rgb(103 85 195 / 16%), transparent 28rem),
+    radial-gradient(circle at 18% 100%, rgb(255 128 102 / 8%), transparent 30rem),
+    var(--apotheke-canvas);
+}
+
+:focus-visible {
+  outline: 3px solid rgb(139 123 224 / 35%);
+  outline-offset: 2px;
+}
+
+button,
+a,
+input,
+textarea,
+select {
+  transition-duration: 160ms;
+  transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+}
+
+.app-content {
+  animation: app-content-in 220ms ease-out;
+}
+
+.documents-title-blob {
+  position: absolute;
+  left: -28px;
+  top: -8px;
+  width: 520px;
+  height: 210px;
+  border-radius: 34% 66% 58% 42% / 60% 38% 62% 40%;
+  background: linear-gradient(135deg, #e5dcff 0%, #eee8ff 58%, #f7ddf5 100%);
+  box-shadow: inset -26px -18px 42px rgb(139 123 224 / 12%);
+  transform: rotate(-2deg);
+}
+
+.dark .documents-title-blob {
+  background: linear-gradient(135deg, #49377f 0%, #36285f 58%, #4b2859 100%);
+  box-shadow: inset -18px -12px 30px rgb(20 14 38 / 24%);
+}
+
+.notes-title-blob {
+  position: absolute;
+  left: -24px;
+  top: -8px;
+  width: 360px;
+  height: 170px;
+  border-radius: 58% 42% 66% 34% / 42% 62% 38% 58%;
+  background: linear-gradient(135deg, #fff0e8 0%, #f8e7ff 62%, #e8e2ff 100%);
+  transform: rotate(1deg);
+}
+
+.dark .notes-title-blob {
+  background: linear-gradient(135deg, #4d2e37 0%, #382752 62%, #302453 100%);
+}
+
+.tasks-title-blob {
+  position: absolute;
+  right: -120px;
+  top: -70px;
+  width: 560px;
+  height: 300px;
+  border-radius: 58% 42% 38% 62% / 48% 62% 38% 52%;
+  background: linear-gradient(135deg, rgb(232 226 255 / 72%), rgb(247 221 245 / 54%));
+  transform: rotate(7deg);
+}
+
+.dark .tasks-title-blob {
+  background: linear-gradient(135deg, rgb(73 55 127 / 46%), rgb(75 40 89 / 32%));
+}
+
+.integrations-title-blob {
+  position: absolute;
+  right: -70px;
+  top: -70px;
+  width: 590px;
+  height: 285px;
+  border-radius: 46% 54% 63% 37% / 56% 38% 62% 44%;
+  background: linear-gradient(135deg, rgb(232 226 255 / 82%), rgb(239 229 255 / 72%) 52%, rgb(210 248 242 / 68%));
+  box-shadow: inset 24px -24px 60px rgb(139 123 224 / 10%);
+  transform: rotate(-4deg);
+}
+
+.dark .integrations-title-blob {
+  background: linear-gradient(135deg, rgb(73 55 127 / 52%), rgb(61 42 94 / 48%) 52%, rgb(32 105 103 / 28%));
+  box-shadow: inset 24px -24px 60px rgb(20 14 38 / 18%);
+}
+
+@keyframes app-content-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-content { animation: none; }
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
+}
+
+.dark .bg-white { background-color: #211b35; }
+.dark .bg-slate-50,
+.dark .bg-slate-50\/60,
+.dark .bg-slate-50\/70,
+.dark .bg-slate-100 { background-color: #2b2442; }
+.dark .text-slate-900,
+.dark .text-slate-800,
+.dark .text-slate-700 { color: #f5f3ff; }
+.dark .text-slate-600,
+.dark .text-slate-500,
+.dark .text-slate-400 { color: #b9add3; }
+.dark .border-slate-100,
+.dark .border-slate-200,
+.dark .border-slate-300 { border-color: #463b64; }
+.dark input,
+.dark textarea,
+.dark select { color: #f5f3ff; background-color: #211b35; }
 
 * {
   box-sizing: border-box;
@@ -53,6 +196,8 @@ button:not(:disabled) {
 ::-webkit-scrollbar-thumb {
   border: 3px solid transparent;
   border-radius: 8px;
-  background: #c9c0df;
+  background: #b9add3;
   background-clip: content-box;
 }
+
+::-webkit-scrollbar-thumb:hover { background: #8b7be0; background-clip: content-box; }

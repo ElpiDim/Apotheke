@@ -11,8 +11,11 @@ import {
   deleteIntegrationFolder,
   listIntegrationEntries,
   listIntegrationFolders,
+  updateIntegrationEntry,
+  updateIntegrationFolder,
 } from '../src/features/integrations/integrationRepository.js';
 import { search } from '../src/features/search/searchService.js';
+import { createTask, deleteTask, listTasks, updateTask } from '../src/features/tasks/taskRepository.js';
 
 describe('local knowledge persistence', () => {
   let directory: string;
@@ -64,7 +67,7 @@ describe('local knowledge persistence', () => {
   it('stores nested integration folders and cascades their entries', () => {
     const parent = createIntegrationFolder(database, { name: 'Platforms', parentId: null });
     const child = createIntegrationFolder(database, { name: 'Payments', parentId: parent.id });
-    createIntegrationEntry(database, {
+    const entry = createIntegrationEntry(database, {
       folderId: child.id,
       title: 'Stripe dashboard',
       description: 'Test environment',
@@ -73,9 +76,43 @@ describe('local knowledge persistence', () => {
 
     expect(listIntegrationFolders(database)).toHaveLength(2);
     expect(listIntegrationEntries(database)[0]?.folderId).toBe(child.id);
+    const integrationResult = search(database, 'Stripe AND Payments')[0];
+    expect(integrationResult?.entityType).toBe('integration');
+    expect(integrationResult?.integrationFolderId).toBe(child.id);
+
+    const renamed = updateIntegrationFolder(database, child.id, { name: 'Payment services' });
+    expect(renamed.name).toBe('Payment services');
+    const moved = updateIntegrationEntry(database, entry.id, {
+      folderId: parent.id,
+      title: 'Stripe operations dashboard',
+    });
+    expect(moved.folderId).toBe(parent.id);
+    expect(search(database, 'operations AND Platforms')[0]?.entityId).toBe(entry.id);
 
     deleteIntegrationFolder(database, parent.id);
     expect(listIntegrationFolders(database)).toHaveLength(0);
     expect(listIntegrationEntries(database)).toHaveLength(0);
+    expect(search(database, 'Stripe')).toHaveLength(0);
+  });
+
+  it('stores task deadlines and completion state', () => {
+    const task = createTask(database, {
+      title: 'Review integration docs',
+      description: 'Check the new PDF flow.',
+      dueAt: '2026-08-10T09:00:00.000Z',
+    });
+    expect(listTasks(database)[0]?.dueAt).toBe('2026-08-10T09:00:00.000Z');
+
+    const completed = updateTask(database, task.id, {
+      title: 'Review and publish integration docs',
+      dueAt: '2026-08-11T10:30:00.000Z',
+      completed: true,
+    });
+    expect(completed.title).toBe('Review and publish integration docs');
+    expect(completed.dueAt).toBe('2026-08-11T10:30:00.000Z');
+    expect(completed.completedAt).not.toBeNull();
+
+    deleteTask(database, task.id);
+    expect(listTasks(database)).toHaveLength(0);
   });
 });

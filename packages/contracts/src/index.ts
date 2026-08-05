@@ -60,7 +60,7 @@ export const importDocumentFieldsSchema = z.object({
 });
 
 export const searchResultSchema = z.object({
-  entityType: z.enum(['document', 'note']),
+  entityType: z.enum(['document', 'note', 'integration']),
   entityId: entityIdSchema,
   title: z.string(),
   snippet: z.string(),
@@ -68,6 +68,7 @@ export const searchResultSchema = z.object({
   category: z.string().nullable(),
   tags: z.array(z.string()),
   version: z.string().nullable(),
+  integrationFolderId: entityIdSchema.nullable(),
   updatedAt: z.string(),
 });
 
@@ -104,6 +105,11 @@ export const createIntegrationFolderSchema = z.object({
   parentId: entityIdSchema.nullable().default(null),
 });
 
+export const updateIntegrationFolderSchema = z.object({
+  name: z.string().trim().min(1).max(120).optional(),
+  parentId: entityIdSchema.nullable().optional(),
+}).refine((value) => Object.keys(value).length > 0, 'At least one folder field is required.');
+
 export const createIntegrationEntrySchema = z.object({
   folderId: entityIdSchema,
   title: z.string().trim().min(1).max(240),
@@ -111,6 +117,37 @@ export const createIntegrationEntrySchema = z.object({
   url: z.union([z.url(), z.literal(''), z.null()]).default(null)
     .transform((value) => value || null),
 });
+
+export const updateIntegrationEntrySchema = z.object({
+  folderId: entityIdSchema.optional(),
+  title: z.string().trim().min(1).max(240).optional(),
+  description: z.string().trim().max(20_000).optional(),
+  url: z.union([z.url(), z.literal(''), z.null()]).optional()
+    .transform((value) => value === '' ? null : value),
+}).refine((value) => Object.keys(value).length > 0, 'At least one integration field is required.');
+
+export const taskSchema = z.object({
+  id: entityIdSchema,
+  title: z.string(),
+  description: z.string(),
+  dueAt: z.string().nullable(),
+  completedAt: z.string().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+export const createTaskSchema = z.object({
+  title: z.string().trim().min(1).max(240),
+  description: z.string().trim().max(20_000).default(''),
+  dueAt: z.iso.datetime({ offset: true }).nullable().default(null),
+});
+
+export const updateTaskSchema = z.object({
+  title: z.string().trim().min(1).max(240).optional(),
+  description: z.string().trim().max(20_000).optional(),
+  dueAt: z.iso.datetime({ offset: true }).nullable().optional(),
+  completed: z.boolean().optional(),
+}).refine((value) => Object.keys(value).length > 0, 'At least one task field is required.');
 
 export type Tag = z.infer<typeof tagSchema>;
 export type Category = z.infer<typeof categorySchema>;
@@ -125,3 +162,8 @@ export type IntegrationFolder = z.infer<typeof integrationFolderSchema>;
 export type IntegrationEntry = z.infer<typeof integrationEntrySchema>;
 export type CreateIntegrationFolderInput = z.infer<typeof createIntegrationFolderSchema>;
 export type CreateIntegrationEntryInput = z.infer<typeof createIntegrationEntrySchema>;
+export type UpdateIntegrationFolderInput = z.infer<typeof updateIntegrationFolderSchema>;
+export type UpdateIntegrationEntryInput = z.infer<typeof updateIntegrationEntrySchema>;
+export type Task = z.infer<typeof taskSchema>;
+export type CreateTaskInput = z.infer<typeof createTaskSchema>;
+export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;

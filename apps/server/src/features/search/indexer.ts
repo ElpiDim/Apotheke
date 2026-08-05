@@ -10,7 +10,7 @@ interface SearchSourceRow {
 
 function replaceIndexRow(
   database: ApothekeDatabase,
-  entityType: 'document' | 'note',
+  entityType: 'document' | 'note' | 'integration',
   entityId: string,
   source: SearchSourceRow,
 ): void {
@@ -68,9 +68,41 @@ export function reindexNote(database: ApothekeDatabase, noteId: string): void {
   if (row) replaceIndexRow(database, 'note', noteId, row);
 }
 
+export function reindexIntegrationEntry(database: ApothekeDatabase, entryId: string): void {
+  const entry = database.prepare(`
+    SELECT title, description AS content, folder_id AS folderId, url, original_filename AS originalFilename
+    FROM integration_entries WHERE id = ?
+  `).get(entryId) as {
+    title: string;
+    content: string;
+    folderId: string;
+    url: string | null;
+    originalFilename: string | null;
+  } | undefined;
+  if (!entry) return;
+
+  const folderNames: string[] = [];
+  let folderId: string | null = entry.folderId;
+  const folderStatement = database.prepare('SELECT name, parent_id AS parentId FROM integration_folders WHERE id = ?');
+  while (folderId) {
+    const folder = folderStatement.get(folderId) as { name: string; parentId: string | null } | undefined;
+    if (!folder) break;
+    folderNames.unshift(folder.name);
+    folderId = folder.parentId;
+  }
+
+  replaceIndexRow(database, 'integration', entryId, {
+    title: entry.title,
+    content: entry.content,
+    category: folderNames.join(' / '),
+    tags: [entry.url, entry.originalFilename].filter(Boolean).join(' '),
+    version: null,
+  });
+}
+
 export function removeFromIndex(
   database: ApothekeDatabase,
-  entityType: 'document' | 'note',
+  entityType: 'document' | 'note' | 'integration',
   entityId: string,
 ): void {
   database

@@ -1,6 +1,8 @@
 import {
   createIntegrationEntrySchema,
   createIntegrationFolderSchema,
+  updateIntegrationEntrySchema,
+  updateIntegrationFolderSchema,
 } from '@apotheke/contracts';
 import { Router } from 'express';
 import fs from 'node:fs/promises';
@@ -19,6 +21,8 @@ import {
   listIntegrationFolders,
   getIntegrationStoredFile,
   listStoredFilesInFolderTree,
+  updateIntegrationEntry,
+  updateIntegrationFolder,
 } from './integrationRepository.js';
 import { integrationPdfUpload } from './upload.js';
 
@@ -36,6 +40,11 @@ integrationsRouter.post('/folders', (request, response) => {
   response.status(201).json({ folder: createIntegrationFolder(database, input) });
 });
 
+integrationsRouter.patch('/folders/:id', (request, response) => {
+  const input = updateIntegrationFolderSchema.parse(request.body);
+  response.json({ folder: updateIntegrationFolder(database, request.params.id, input) });
+});
+
 integrationsRouter.delete('/folders/:id', async (request, response) => {
   const storedFiles = listStoredFilesInFolderTree(database, request.params.id);
   deleteIntegrationFolder(database, request.params.id);
@@ -46,6 +55,11 @@ integrationsRouter.delete('/folders/:id', async (request, response) => {
 integrationsRouter.post('/entries', (request, response) => {
   const input = createIntegrationEntrySchema.parse(request.body);
   response.status(201).json({ entry: createIntegrationEntry(database, input) });
+});
+
+integrationsRouter.patch('/entries/:id', (request, response) => {
+  const input = updateIntegrationEntrySchema.parse(request.body);
+  response.json({ entry: updateIntegrationEntry(database, request.params.id, input) });
 });
 
 integrationsRouter.post('/pdf', integrationPdfUpload.single('file'), async (request, response) => {

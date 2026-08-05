@@ -3,7 +3,7 @@ import type { ApothekeDatabase } from '../../database/database.js';
 import { buildFtsQuery } from './queryParser.js';
 
 interface MatchRow {
-  entityType: 'document' | 'note';
+  entityType: 'document' | 'note' | 'integration';
   entityId: string;
   title: string;
   snippet: string;
@@ -15,6 +15,7 @@ interface DetailsRow {
   tags: string | null;
   version: string | null;
   updatedAt: string;
+  integrationFolderId: string | null;
 }
 
 export function search(database: ApothekeDatabase, rawQuery: string): SearchResult[] {
@@ -37,7 +38,8 @@ export function search(database: ApothekeDatabase, rawQuery: string): SearchResu
     `SELECT c.name AS category,
             GROUP_CONCAT(DISTINCT t.name) AS tags,
             v.version_label AS version,
-            d.updated_at AS updatedAt
+            d.updated_at AS updatedAt,
+            NULL AS integrationFolderId
      FROM documents d
      JOIN document_versions v ON v.document_id = d.id AND v.is_current = 1
      LEFT JOIN categories c ON c.id = d.category_id
@@ -50,7 +52,8 @@ export function search(database: ApothekeDatabase, rawQuery: string): SearchResu
     `SELECT c.name AS category,
             GROUP_CONCAT(DISTINCT t.name) AS tags,
             NULL AS version,
-            n.updated_at AS updatedAt
+            n.updated_at AS updatedAt,
+            NULL AS integrationFolderId
      FROM notes n
      LEFT JOIN categories c ON c.id = n.category_id
      LEFT JOIN note_tags nt ON nt.note_id = n.id
@@ -58,11 +61,23 @@ export function search(database: ApothekeDatabase, rawQuery: string): SearchResu
      WHERE n.id = ?
      GROUP BY n.id`,
   );
+  const integrationDetails = database.prepare(
+    `SELECT f.name AS category,
+            CASE WHEN e.original_filename IS NOT NULL THEN e.original_filename ELSE e.url END AS tags,
+            NULL AS version,
+            e.updated_at AS updatedAt,
+            e.folder_id AS integrationFolderId
+     FROM integration_entries e
+     JOIN integration_folders f ON f.id = e.folder_id
+     WHERE e.id = ?`,
+  );
 
   return matches.flatMap((match) => {
     const details = (match.entityType === 'document'
       ? documentDetails.get(match.entityId)
-      : noteDetails.get(match.entityId)) as DetailsRow | undefined;
+      : match.entityType === 'note'
+        ? noteDetails.get(match.entityId)
+        : integrationDetails.get(match.entityId)) as DetailsRow | undefined;
     if (!details) return [];
 
     return [{
@@ -70,6 +85,7 @@ export function search(database: ApothekeDatabase, rawQuery: string): SearchResu
       category: details.category,
       tags: details.tags ? details.tags.split(',') : [],
       version: details.version,
+      integrationFolderId: details.integrationFolderId,
       updatedAt: details.updatedAt,
     }];
   });

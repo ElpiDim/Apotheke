@@ -122,4 +122,32 @@ export const migrations: readonly Migration[] = [
         WHERE stored_filename IS NOT NULL;
     `,
   },
+  {
+    id: 4,
+    name: 'index_existing_integrations',
+    sql: `
+      INSERT INTO search_index (entity_type, entity_id, title, content, metadata)
+      SELECT 'integration', e.id, e.title, e.description,
+             TRIM(COALESCE(e.url, '') || ' ' || COALESCE(e.original_filename, '') || ' ' || f.name)
+      FROM integration_entries e
+      JOIN integration_folders f ON f.id = e.folder_id;
+    `,
+  },
+  {
+    id: 5,
+    name: 'tasks_and_deadlines',
+    sql: `
+      CREATE TABLE tasks (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        description TEXT NOT NULL DEFAULT '',
+        due_at TEXT,
+        completed_at TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX tasks_due_at_idx ON tasks(due_at);
+      CREATE INDEX tasks_completed_at_idx ON tasks(completed_at, updated_at DESC);
+    `,
+  },
 ];

@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { SearchResult } from '@apotheke/contracts';
-import { FileText, Search, StickyNote } from 'lucide-react';
-import { useSearchParams } from 'react-router-dom';
+import { FileText, PlugZap, Search, StickyNote } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Badge } from '../../components/Badge';
 import { EmptyState } from '../../components/EmptyState';
 import { PageHeader } from '../../components/PageHeader';
@@ -38,7 +38,7 @@ export function SearchPage() {
 
   return (
     <div>
-      <PageHeader eyebrow="Retrieval" title="Search" description="Search document contents, notes and metadata with SQLite FTS5." />
+      <PageHeader eyebrow="Retrieval" title="Search" description="Search documents, notes, integrations, folder names and metadata with SQLite FTS5." />
 
       <form onSubmit={submit} className="relative max-w-3xl">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
@@ -72,11 +72,13 @@ export function SearchPage() {
                 <div key={`${result.entityType}-${result.entityId}`} className="border-b border-slate-100 px-5 py-4 last:border-0 hover:bg-slate-50/70">
                   <div className="flex items-start gap-3">
                     <div className="mt-0.5 rounded-md bg-slate-100 p-2 text-slate-500">
-                      {result.entityType === 'document' ? <FileText size={15} /> : <StickyNote size={15} />}
+                      {result.entityType === 'document' ? <FileText size={15} /> : result.entityType === 'note' ? <StickyNote size={15} /> : <PlugZap size={15} />}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <h3 className="truncate text-sm font-semibold text-slate-800">{result.title}</h3>
+                        {result.entityType === 'integration' && result.integrationFolderId
+                          ? <Link to={`/integrations?folder=${result.integrationFolderId}`} className="truncate text-sm font-semibold text-violet-800 hover:text-coral-600 hover:underline">{result.title}</Link>
+                          : <h3 className="truncate text-sm font-semibold text-slate-800">{result.title}</h3>}
                         <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{result.entityType}</span>
                       </div>
                       <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-slate-500">{result.snippet || 'Match found in metadata.'}</p>
