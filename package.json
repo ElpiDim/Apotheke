@@ -1,0 +1,24 @@
+{
+  "name": "apotheke",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A local-first technical knowledge management system.",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run build -w @apotheke/contracts && concurrently -k -n contracts,server,web -c blue,magenta,green \"npm run dev -w @apotheke/contracts\" \"npm run dev -w @apotheke/server\" \"npm run dev -w @apotheke/web\"",
+    "build": "npm run build -w @apotheke/contracts && npm run build -w @apotheke/server && npm run build -w @apotheke/web",
+    "typecheck": "npm run build -w @apotheke/contracts && npm run typecheck -w @apotheke/server && npm run typecheck -w @apotheke/web",
+    "test": "npm run test -w @apotheke/server",
+    "check": "npm run typecheck && npm run test && npm run build"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.4"
+  },
+  "engines": {
+    "node": ">=20.19.0",
+    "npm": ">=10"
+  }
+}

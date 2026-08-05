@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+.env
+
+# Apotheke's database and imported documents are private local data.
+data/*
+!data/.gitkeep
