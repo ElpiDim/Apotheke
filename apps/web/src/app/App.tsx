@@ -21,6 +21,7 @@ export function App() {
           <Route path="/integrations/pdf/:entryId" element={<IntegrationPdfPage />} />
           <Route path="/tasks" element={<TasksPage />} />
           <Route path="/categories" element={<CategoriesPage />} />
+          <Route path="/categories/:categoryId" element={<CategoriesPage />} />
           <Route path="/search" element={<SearchPage />} />
         </Routes>
       </AppShell>

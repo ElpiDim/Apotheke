@@ -73,10 +73,10 @@ function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose: () => 
           {categories.length === 0 ? (
             <p className="px-3 py-2 text-xs leading-5 text-violet-400 dark:text-violet-500">Categories appear here as you use them.</p>
           ) : categories.map((category) => (
-            <div key={category.id} className="flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-xs text-violet-200 hover:bg-violet-800/60 dark:text-violet-700 dark:hover:bg-white">
+            <NavLink key={category.id} to={`/categories/${category.id}`} onClick={onClose} className={({ isActive }) => `flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-xs transition ${isActive ? 'bg-violet-700 font-semibold text-white dark:bg-white dark:text-violet-900' : 'text-violet-200 hover:bg-violet-800/60 dark:text-violet-700 dark:hover:bg-white'}`}>
               <span className="h-1.5 w-1.5 rounded-full bg-teal-300" />
               <span className="truncate">{category.name}</span>
-            </div>
+            </NavLink>
           ))}
         </div>
       </div>
