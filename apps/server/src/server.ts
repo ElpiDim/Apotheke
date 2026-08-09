@@ -4,7 +4,7 @@ import { database } from './database/context.js';
 
 const app = createApp();
 const server = app.listen(config.port, config.host, () => {
-  console.log(`Apotheke server: http://${config.host}:${config.port}`);
+  console.log(`Pinit server: http://${config.host}:${config.port}`);
 });
 
 function shutdown(): void {

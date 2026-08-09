@@ -53,10 +53,10 @@ export function CategoriesPage() {
           <div className="space-y-8">
             <CategorySection title="Documents" count={categoryDocuments.length} icon={<FileText size={18} />}>
               {categoryDocuments.map((document) => (
-                <article key={document.id} className="rounded-2xl border border-violet-100 bg-white p-5 shadow-[0_6px_20px_rgba(82,65,168,0.05)] dark:border-violet-800 dark:bg-[#211b35]">
+                <Link to={`/documents/${document.id}`} key={document.id} className="rounded-2xl border border-violet-100 bg-white p-5 shadow-[0_6px_20px_rgba(82,65,168,0.05)] transition hover:-translate-y-0.5 hover:shadow-md dark:border-violet-800 dark:bg-[#211b35]">
                   <div className="flex items-start gap-3"><div className="rounded-xl bg-violet-100 p-2.5 text-violet-600 dark:bg-violet-900 dark:text-violet-300"><FileText size={18} /></div><div className="min-w-0"><h3 className="truncate text-sm font-semibold text-violet-950 dark:text-violet-50">{document.title}</h3><p className="mt-1 truncate text-[11px] text-violet-400">{document.currentVersion.originalFilename}</p></div></div>
                   <div className="mt-4 flex items-center border-t border-violet-100 pt-3 text-[10px] text-violet-400 dark:border-violet-800"><span>{formatDate(document.updatedAt)}</span><span className="ml-auto">{formatBytes(document.currentVersion.fileSize)}</span></div>
-                </article>
+                </Link>
               ))}
             </CategorySection>
 

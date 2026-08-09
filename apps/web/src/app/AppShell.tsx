@@ -1,7 +1,6 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
-import type { Category } from '@apotheke/contracts';
+import type { Category, Task } from '@apotheke/contracts';
 import {
-  BookOpen,
   FileText,
   LayoutDashboard,
   PlugZap,
@@ -12,13 +11,19 @@ import {
   X,
   Search,
   StickyNote,
+  Image as ImageIcon,
+  AlertTriangle,
+  Bell,
+  CheckCircle2,
 } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
+import { onWorkspaceChange } from '../lib/workspaceEvents';
 
 const navItems = [
   { to: '/', label: 'Overview', icon: LayoutDashboard, end: true },
   { to: '/documents', label: 'Documents', icon: FileText, end: false },
+  { to: '/images', label: 'Images', icon: ImageIcon, end: false },
   { to: '/notes', label: 'Notes', icon: StickyNote, end: false },
   { to: '/integrations', label: 'Integrations', icon: PlugZap, end: false },
   { to: '/tasks', label: 'Tasks', icon: ListTodo, end: false },
@@ -28,22 +33,22 @@ function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose: () => 
   const [categories, setCategories] = useState<Category[]>([]);
 
   useEffect(() => {
-    void api<{ categories: Category[] }>('/categories')
-      .then((result) => setCategories(result.categories))
+    let active = true;
+    const load = () => api<{ categories: Category[] }>('/categories')
+      .then((result) => { if (active) setCategories(result.categories); })
       .catch(() => undefined);
+    void load();
+    const unsubscribe = onWorkspaceChange((resources) => { if (resources.includes('categories')) void load(); });
+    const refreshOnFocus = () => void load();
+    window.addEventListener('focus', refreshOnFocus);
+    return () => { active = false; unsubscribe(); window.removeEventListener('focus', refreshOnFocus); };
   }, []);
 
   return (
     <aside className={`fixed inset-y-0 left-0 z-30 flex w-60 flex-col border-r border-violet-700 bg-gradient-to-b from-violet-900 to-violet-950 text-violet-100 shadow-xl shadow-violet-950/10 transition-transform dark:border-violet-200 dark:from-[#f7f4ff] dark:to-[#ebe5fb] dark:text-violet-950 dark:shadow-black/20 sm:translate-x-0 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-      <div className="flex h-16 items-center gap-3 border-b border-violet-700/70 px-5 dark:border-violet-200">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-coral-500 to-amber-400 text-white shadow-lg shadow-coral-500/20">
-          <BookOpen size={17} />
-        </div>
-        <div>
-          <div className="text-[15px] font-semibold tracking-wide text-white dark:text-violet-950">Apotheke</div>
-          <div className="text-[10px] uppercase tracking-[0.17em] text-violet-300 dark:text-violet-500">Local knowledge</div>
-        </div>
-        <button onClick={onClose} aria-label="Close navigation" className="ml-auto rounded-lg p-1.5 text-violet-300 hover:bg-violet-800 dark:text-violet-500 dark:hover:bg-violet-100 sm:hidden"><X size={17} /></button>
+      <div className="relative flex h-36 items-center justify-center border-b border-violet-700/70 px-3 dark:border-violet-200">
+        <img src="/pinit-logo.png" alt="Pinit logo" className="h-auto w-[205px] shrink-0 drop-shadow-[0_12px_18px_rgba(20,10,55,0.28)]" />
+        <button onClick={onClose} aria-label="Close navigation" className="absolute right-3 top-3 rounded-lg p-1.5 text-violet-300 hover:bg-violet-800 dark:text-violet-500 dark:hover:bg-violet-100 sm:hidden"><X size={17} /></button>
       </div>
 
       <nav className="px-3 py-4">
@@ -116,7 +121,58 @@ function Topbar({ onMenu, dark, onToggleTheme }: { onMenu: () => void; dark: boo
         <span className="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-teal-500" />
         Local
       </div>
+      <TaskNotifications />
     </header>
+  );
+}
+
+function taskDay(value: string): string {
+  const date = new Date(value);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function TaskNotifications() {
+  const navigate = useNavigate();
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    const load = () => api<{ tasks: Task[] }>('/tasks').then((result) => { if (active) setTasks(result.tasks); }).catch(() => undefined);
+    void load();
+    const timer = window.setInterval(() => void load(), 15_000);
+    const unsubscribe = onWorkspaceChange((resources) => { if (resources.includes('tasks')) void load(); });
+    const refreshOnFocus = () => void load();
+    window.addEventListener('focus', refreshOnFocus);
+    return () => { active = false; window.clearInterval(timer); unsubscribe(); window.removeEventListener('focus', refreshOnFocus); };
+  }, []);
+
+  const today = taskDay(new Date().toISOString());
+  const reminders = tasks.filter((task) => !task.completedAt && task.dueAt && taskDay(task.dueAt) <= today);
+  const overdue = reminders.filter((task) => task.dueAt && taskDay(task.dueAt) < today);
+  const dueToday = reminders.filter((task) => task.dueAt && taskDay(task.dueAt) === today);
+
+  async function toggleNotifications() {
+    const nextOpen = !open;
+    setOpen(nextOpen);
+    if (!nextOpen || reminders.length === 0 || !('Notification' in window)) return;
+    let permission = Notification.permission;
+    if (permission === 'default') permission = await Notification.requestPermission();
+    const storageKey = `pinit-task-reminder-${today}`;
+    if (permission === 'granted' && !sessionStorage.getItem(storageKey)) {
+      new Notification('Pinit task reminders', {
+        body: `${overdue.length} overdue · ${dueToday.length} due today`,
+        icon: '/pinit-logo.png',
+      });
+      sessionStorage.setItem(storageKey, 'shown');
+    }
+  }
+
+  return (
+    <div className="relative ml-2">
+      <button onClick={() => void toggleNotifications()} aria-label="Task notifications" className="relative rounded-xl p-2 text-violet-500 hover:bg-violet-50 dark:text-violet-300 dark:hover:bg-violet-800"><Bell size={18} />{reminders.length > 0 && <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-coral-500 px-1 text-[9px] font-bold text-white">{reminders.length > 9 ? '9+' : reminders.length}</span>}</button>
+      {open && <><button aria-label="Close notifications" onClick={() => setOpen(false)} className="fixed inset-0 z-40 cursor-default" /><section className="absolute right-0 top-12 z-50 w-[min(340px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-violet-100 bg-white shadow-2xl dark:border-violet-700 dark:bg-[#211b35]"><header className="flex items-center justify-between border-b border-violet-100 px-4 py-3 dark:border-violet-800"><div><h2 className="text-sm font-semibold text-violet-950 dark:text-white">Task reminders</h2><p className="mt-0.5 text-[10px] text-violet-400">Today and overdue</p></div>{reminders.length > 0 && <span className="rounded-full bg-coral-50 px-2 py-1 text-[10px] font-bold text-coral-600 dark:bg-coral-950">{reminders.length}</span>}</header><div className="max-h-80 overflow-auto p-2">{reminders.length === 0 ? <div className="px-4 py-8 text-center"><CheckCircle2 className="mx-auto mb-2 text-teal-400" size={24} /><p className="text-xs font-semibold text-violet-800 dark:text-violet-100">You’re all caught up</p><p className="mt-1 text-[10px] text-violet-400">No tasks due today or overdue.</p></div> : reminders.map((task) => { const isOverdue = Boolean(task.dueAt && taskDay(task.dueAt) < today); return <button key={task.id} onClick={() => { setOpen(false); navigate('/tasks'); }} className="flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left hover:bg-violet-50 dark:hover:bg-violet-900"><div className={`mt-0.5 rounded-lg p-1.5 ${isOverdue ? 'bg-red-50 text-red-500 dark:bg-red-950' : 'bg-amber-50 text-amber-500 dark:bg-amber-950'}`}>{isOverdue ? <AlertTriangle size={14} /> : <Bell size={14} />}</div><div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold text-violet-900 dark:text-violet-100">{task.title}</p><p className={`mt-1 text-[10px] font-medium ${isOverdue ? 'text-red-500' : 'text-amber-600'}`}>{isOverdue ? 'Overdue' : 'Due today'}{task.dueAt ? ` · ${new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(new Date(task.dueAt))}` : ''}</p></div></button>; })}</div><button onClick={() => { setOpen(false); navigate('/tasks'); }} className="w-full border-t border-violet-100 px-4 py-3 text-xs font-semibold text-violet-600 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-300 dark:hover:bg-violet-900">View all tasks</button></section></>}
+    </div>
   );
 }
 

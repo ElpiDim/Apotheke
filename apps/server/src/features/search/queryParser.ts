@@ -1,7 +1,7 @@
 import { AppError } from '../../middleware/errors.js';
 
 type Token =
-  | { type: 'term'; value: string }
+  | { type: 'term'; value: string; exact: boolean }
   | { type: 'operator'; value: 'AND' | 'OR' | 'NOT' };
 
 function tokenize(input: string): Token[] {
@@ -20,7 +20,7 @@ function tokenize(input: string): Token[] {
         throw new AppError(400, 'Search phrase is missing a closing quote.', 'INVALID_SEARCH_QUERY');
       }
       const phrase = input.slice(index + 1, end).trim();
-      if (phrase) tokens.push({ type: 'term', value: phrase });
+      if (phrase) tokens.push({ type: 'term', value: phrase, exact: true });
       index = end + 1;
       continue;
     }
@@ -32,7 +32,7 @@ function tokenize(input: string): Token[] {
     if (upper === 'AND' || upper === 'OR' || upper === 'NOT') {
       tokens.push({ type: 'operator', value: upper });
     } else {
-      tokens.push({ type: 'term', value });
+      tokens.push({ type: 'term', value, exact: false });
     }
     index = end;
   }
@@ -40,8 +40,9 @@ function tokenize(input: string): Token[] {
   return tokens;
 }
 
-function quoteTerm(value: string): string {
-  return `"${value.replaceAll('"', '""')}"`;
+function quoteTerm(value: string, exact: boolean): string {
+  const quoted = `"${value.replaceAll('"', '""')}"`;
+  return exact ? quoted : `${quoted}*`;
 }
 
 export function buildFtsQuery(input: string): string {
@@ -80,7 +81,7 @@ export function buildFtsQuery(input: string): string {
   for (const token of tokens) {
     if (token.type === 'term') {
       if (previous?.type === 'term') output.push('AND');
-      output.push(quoteTerm(token.value));
+      output.push(quoteTerm(token.value, token.exact));
     } else {
       if (previous?.type === 'operator') {
         throw new AppError(400, 'Two boolean operators cannot appear together.', 'INVALID_SEARCH_QUERY');

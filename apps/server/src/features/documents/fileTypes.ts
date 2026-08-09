@@ -6,6 +6,12 @@ export const supportedDocumentTypes = {
   '.txt': 'text/plain',
   '.md': 'text/markdown',
   '.markdown': 'text/markdown',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.webp': 'image/webp',
+  '.gif': 'image/gif',
+  '.avif': 'image/avif',
 } as const;
 
 export type SupportedExtension = keyof typeof supportedDocumentTypes;

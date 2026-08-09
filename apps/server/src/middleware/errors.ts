@@ -38,6 +38,6 @@ export const errorHandler: ErrorRequestHandler = (error, _request, response, _ne
   console.error(error);
   response.status(500).json({
     error: 'INTERNAL_ERROR',
-    message: 'Apotheke could not complete the request.',
+    message: 'Pinit could not complete the request.',
   });
 };

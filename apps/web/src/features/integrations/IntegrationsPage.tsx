@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState, type FormEvent, type InputHTMLAttributes, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type DragEvent, type FormEvent, type InputHTMLAttributes, type ReactNode } from 'react';
 import type { IntegrationEntry, IntegrationFolder } from '@apotheke/contracts';
-import { ChevronRight, ExternalLink, FileText, Folder, FolderOpen, FolderPlus, HardDrive, Link2, Pencil, Plus, Sparkles, Trash2, X } from 'lucide-react';
+import { ChevronRight, ExternalLink, FileText, Folder, FolderOpen, FolderPlus, HardDrive, Link2, Pencil, Plus, Sparkles, Trash2, UploadCloud, X } from 'lucide-react';
 import { EmptyState } from '../../components/EmptyState';
 import { api, jsonRequest } from '../../lib/api';
 import { Link, useSearchParams } from 'react-router-dom';
+import { announceWorkspaceChange } from '../../lib/workspaceEvents';
 
 interface IntegrationWorkspace {
   folders: IntegrationFolder[];
@@ -33,6 +34,8 @@ export function IntegrationsPage() {
   const [editingFolder, setEditingFolder] = useState<IntegrationFolder | null>(null);
   const [editingEntry, setEditingEntry] = useState<IntegrationEntry | null>(null);
   const [error, setError] = useState('');
+  const [dragActive, setDragActive] = useState(false);
+  const [uploadingDrop, setUploadingDrop] = useState(false);
 
   async function load() {
     const result = await api<IntegrationWorkspace>('/integrations');
@@ -75,6 +78,7 @@ export function IntegrationsPage() {
         parentId: form.get('parentId') || null,
       }));
       await load();
+      announceWorkspaceChange('integrations');
       setSelectedId(result.folder.id);
       setFolderOpen(false);
       setEditingFolder(null);
@@ -102,6 +106,7 @@ export function IntegrationsPage() {
         }));
       }
       await load();
+      announceWorkspaceChange('integrations');
       setEntryOpen(false);
       setEditingEntry(null);
     } catch (reason) {
@@ -113,12 +118,14 @@ export function IntegrationsPage() {
     if (!selectedFolder || !window.confirm(`Delete “${selectedFolder.name}” and everything inside it?`)) return;
     await api(`/integrations/folders/${selectedFolder.id}`, { method: 'DELETE' });
     await load();
+    announceWorkspaceChange('integrations');
   }
 
   async function removeEntry(entry: IntegrationEntry) {
     if (!window.confirm(`Delete “${entry.title}”?`)) return;
     await api(`/integrations/entries/${entry.id}`, { method: 'DELETE' });
     await load();
+    announceWorkspaceChange('integrations');
   }
 
   function newFolder() {
@@ -139,6 +146,40 @@ export function IntegrationsPage() {
   function editEntry(entry: IntegrationEntry) {
     setEditingEntry(entry);
     setEntryOpen(true);
+  }
+
+  function dragOver(event: DragEvent<HTMLDivElement>) {
+    if (!event.dataTransfer.types.includes('Files')) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+    setDragActive(true);
+  }
+
+  async function dropPdf(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    setDragActive(false);
+    const file = event.dataTransfer.files[0];
+    if (!file || !selectedId) return;
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      setError('Integration folders accept PDF files only.');
+      return;
+    }
+    const form = new FormData();
+    form.set('file', file);
+    form.set('folderId', selectedId);
+    form.set('title', file.name.replace(/\.pdf$/i, ''));
+    form.set('description', '');
+    setUploadingDrop(true);
+    setError('');
+    try {
+      await api('/integrations/pdf', { method: 'POST', body: form });
+      await load();
+      announceWorkspaceChange('integrations');
+    } catch (reason) {
+      setError((reason as Error).message);
+    } finally {
+      setUploadingDrop(false);
+    }
   }
 
   return (
@@ -167,11 +208,12 @@ export function IntegrationsPage() {
           action={<button onClick={newFolder} className="font-semibold text-violet-600 hover:text-violet-700">Create a folder</button>}
         />
       ) : (
-        <div className="flex min-h-[620px] flex-col overflow-hidden rounded-[24px] border border-violet-100 bg-white shadow-[0_12px_36px_rgba(82,65,168,0.08)] dark:border-violet-800 dark:bg-[#211b35]">
+        <div onDragEnter={dragOver} onDragOver={dragOver} onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragActive(false); }} onDrop={(event) => void dropPdf(event)} className="relative flex min-h-[620px] flex-col overflow-hidden rounded-[24px] border border-violet-100 bg-white shadow-[0_12px_36px_rgba(82,65,168,0.08)] dark:border-violet-800 dark:bg-[#211b35]">
+          {(dragActive || uploadingDrop) && <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center border-2 border-dashed border-violet-400 bg-violet-100/90 text-center backdrop-blur-sm dark:bg-violet-950/90"><div><UploadCloud size={38} className="mx-auto mb-3 text-coral-500" /><p className="font-serif text-xl font-semibold text-violet-950 dark:text-white">{uploadingDrop ? 'Adding PDF…' : `Drop PDF into ${selectedFolder?.name ?? 'this folder'}`}</p><p className="mt-1 text-xs text-violet-500 dark:text-violet-300">It will be searchable with the rest of your workspace.</p></div></div>}
           <div className="flex min-h-14 items-center gap-2 border-b border-violet-100 bg-[#fffdf9] px-4 dark:border-violet-800 dark:bg-[#1d1830]">
             <HardDrive size={17} className="shrink-0 text-violet-400" />
             <div className="flex min-w-0 flex-1 items-center overflow-x-auto rounded-xl border border-violet-100 bg-white px-3 py-2 text-xs shadow-inner dark:border-violet-800 dark:bg-[#28213e]">
-              <span className="shrink-0 font-semibold text-violet-500">Apotheke</span>
+              <span className="shrink-0 font-semibold text-violet-500">Pinit</span>
               {selectedPath.map((folder) => (
                 <span key={folder.id} className="flex shrink-0 items-center">
                   <ChevronRight size={14} className="mx-1 text-violet-300" />

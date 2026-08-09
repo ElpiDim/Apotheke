@@ -56,6 +56,7 @@ export const searchResultSchema = z.object({
     category: z.string().nullable(),
     tags: z.array(z.string()),
     version: z.string().nullable(),
+    mimeType: z.string().nullable(),
     integrationFolderId: entityIdSchema.nullable(),
     updatedAt: z.string(),
 });

@@ -37,5 +37,12 @@ export async function extractDocumentText(
     case '.md':
     case '.markdown':
       return extractPlainText(filePath);
+    case '.jpg':
+    case '.jpeg':
+    case '.png':
+    case '.webp':
+    case '.gif':
+    case '.avif':
+      return '';
   }
 }

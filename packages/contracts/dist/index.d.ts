@@ -79,6 +79,7 @@ export declare const searchResultSchema: z.ZodObject<{
     category: z.ZodNullable<z.ZodString>;
     tags: z.ZodArray<z.ZodString>;
     version: z.ZodNullable<z.ZodString>;
+    mimeType: z.ZodNullable<z.ZodString>;
     integrationFolderId: z.ZodNullable<z.ZodString>;
     updatedAt: z.ZodString;
 }, z.core.$strip>;
@@ -97,6 +98,7 @@ export declare const searchResponseSchema: z.ZodObject<{
         category: z.ZodNullable<z.ZodString>;
         tags: z.ZodArray<z.ZodString>;
         version: z.ZodNullable<z.ZodString>;
+        mimeType: z.ZodNullable<z.ZodString>;
         integrationFolderId: z.ZodNullable<z.ZodString>;
         updatedAt: z.ZodString;
     }, z.core.$strip>>;

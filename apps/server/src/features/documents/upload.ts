@@ -19,7 +19,7 @@ export const documentUpload = multer({
     if (!getSupportedExtension(file.originalname)) {
       callback(new AppError(
         400,
-        'Unsupported file type. Apotheke accepts PDF, DOCX, TXT and Markdown files.',
+        'Unsupported file type. Pinit accepts PDF, DOCX, TXT, Markdown and common image files.',
         'UNSUPPORTED_FILE_TYPE',
       ));
       return;

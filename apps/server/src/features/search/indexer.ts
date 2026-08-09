@@ -6,6 +6,7 @@ interface SearchSourceRow {
   category: string | null;
   tags: string | null;
   version: string | null;
+  originalFilename?: string | null;
 }
 
 function replaceIndexRow(
@@ -18,7 +19,7 @@ function replaceIndexRow(
     .prepare('DELETE FROM search_index WHERE entity_type = ? AND entity_id = ?')
     .run(entityType, entityId);
 
-  const metadata = [source.category, source.tags, source.version].filter(Boolean).join(' ');
+  const metadata = [source.category, source.tags, source.version, source.originalFilename].filter(Boolean).join(' ');
   database
     .prepare(
       `INSERT INTO search_index (entity_type, entity_id, title, content, metadata)
@@ -35,6 +36,7 @@ export function reindexDocument(database: ApothekeDatabase, documentId: string):
               c.name AS category,
               GROUP_CONCAT(DISTINCT t.name) AS tags,
               v.version_label AS version
+              ,v.original_filename AS originalFilename
        FROM documents d
        JOIN document_versions v ON v.document_id = d.id AND v.is_current = 1
        LEFT JOIN categories c ON c.id = d.category_id

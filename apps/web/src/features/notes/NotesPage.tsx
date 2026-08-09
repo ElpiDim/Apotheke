@@ -4,6 +4,7 @@ import { Clock3, Plus, Save, Sparkles, Star, StickyNote, Trash2, X } from 'lucid
 import { EmptyState } from '../../components/EmptyState';
 import { api, ApiError, jsonRequest } from '../../lib/api';
 import { formatDate } from '../../lib/format';
+import { announceWorkspaceChange } from '../../lib/workspaceEvents';
 
 const emptyDraft: CreateNoteInput = { title: '', content: '', category: null, tags: [] };
 type NoteFilter = 'all' | 'important' | 'recent';
@@ -62,6 +63,7 @@ export function NotesPage() {
       await (selectedId
         ? api<{ note: Note }>(`/notes/${selectedId}`, jsonRequest('PATCH', input))
         : api<{ note: Note }>('/notes', jsonRequest('POST', input)));
+      announceWorkspaceChange('notes', 'categories');
       await load();
       setEditorOpen(false);
     } catch (caught) {
@@ -72,6 +74,7 @@ export function NotesPage() {
   async function remove() {
     if (!selectedId || !window.confirm(`Delete “${selected?.title ?? 'this note'}”?`)) return;
     await api(`/notes/${selectedId}`, { method: 'DELETE' });
+    announceWorkspaceChange('notes', 'categories');
     setEditorOpen(false);
     setSelectedId(null);
     await load();

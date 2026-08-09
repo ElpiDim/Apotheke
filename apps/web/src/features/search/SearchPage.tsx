@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { SearchResult } from '@apotheke/contracts';
-import { FileText, PlugZap, Search, StickyNote } from 'lucide-react';
+import { ArrowUpRight, FileText, Image as ImageIcon, PlugZap, Search, Sparkles, StickyNote } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Badge } from '../../components/Badge';
 import { EmptyState } from '../../components/EmptyState';
@@ -63,34 +63,37 @@ export function SearchPage() {
 
       {query && !loading && !error && (
         <div className="mt-8">
-          <div className="mb-3 text-xs font-medium text-slate-400">{results.length} {results.length === 1 ? 'result' : 'results'} for <span className="text-slate-700">“{query}”</span></div>
+          <div className="mb-4 text-xs font-medium text-violet-400">{results.length} {results.length === 1 ? 'result' : 'results'} for <span className="font-semibold text-violet-700 dark:text-violet-200">“{query}”</span></div>
           {results.length === 0 ? (
             <EmptyState icon={Search} title="No matches" description="Try fewer terms, an OR query, or remove a filter word." />
           ) : (
-            <div className="max-w-4xl overflow-hidden rounded-xl border border-slate-200 bg-white">
+            <div className="max-w-5xl space-y-4">
               {results.map((result) => (
-                <div key={`${result.entityType}-${result.entityId}`} className="border-b border-slate-100 px-5 py-4 last:border-0 hover:bg-slate-50/70">
+                <article key={`${result.entityType}-${result.entityId}`} className="rounded-2xl border border-violet-100 bg-white px-5 py-5 shadow-[0_6px_20px_rgba(82,65,168,0.05)] transition hover:border-violet-200 hover:shadow-[0_10px_26px_rgba(82,65,168,0.09)] dark:border-violet-800 dark:bg-[#211b35] dark:hover:border-violet-600">
+                  {result.mimeType?.startsWith('image/') && <Link to={`/documents/${result.entityId}?q=${encodeURIComponent(query)}`} className="mb-5 block h-52 overflow-hidden rounded-xl bg-violet-50 dark:bg-violet-950"><img src={`/api/documents/${result.entityId}/file`} alt={result.title} className="h-full w-full object-contain transition duration-300 hover:scale-[1.02]" /></Link>}
                   <div className="flex items-start gap-3">
-                    <div className="mt-0.5 rounded-md bg-slate-100 p-2 text-slate-500">
-                      {result.entityType === 'document' ? <FileText size={15} /> : result.entityType === 'note' ? <StickyNote size={15} /> : <PlugZap size={15} />}
+                    <div className={`mt-0.5 rounded-xl p-2.5 ${result.entityType === 'document' ? 'bg-violet-100 text-violet-600 dark:bg-violet-900 dark:text-violet-300' : result.entityType === 'note' ? 'bg-amber-50 text-amber-500 dark:bg-amber-950' : 'bg-teal-50 text-teal-600 dark:bg-teal-950'}`}>
+                      {result.mimeType?.startsWith('image/') ? <ImageIcon size={15} /> : result.entityType === 'document' ? <FileText size={15} /> : result.entityType === 'note' ? <StickyNote size={15} /> : <PlugZap size={15} />}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        {result.entityType === 'integration' && result.integrationFolderId
-                          ? <Link to={`/integrations?folder=${result.integrationFolderId}`} className="truncate text-sm font-semibold text-violet-800 hover:text-coral-600 hover:underline">{result.title}</Link>
-                          : <h3 className="truncate text-sm font-semibold text-slate-800">{result.title}</h3>}
-                        <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{result.entityType}</span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h2 className="truncate font-serif text-lg font-semibold text-violet-950 dark:text-violet-50">{result.title}</h2>
+                        <span className="rounded-full bg-violet-50 px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-violet-400 dark:bg-violet-900/60 dark:text-violet-300">{result.entityType}</span>
                       </div>
-                      <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-slate-500">{result.snippet || 'Match found in metadata.'}</p>
-                      <div className="mt-2.5 flex items-center gap-1.5">
+                      <div className="mt-3 rounded-xl border border-amber-100 bg-amber-50/60 px-4 py-3 dark:border-amber-900/60 dark:bg-amber-950/20">
+                        <p className="mb-1.5 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.14em] text-amber-600 dark:text-amber-400"><Sparkles size={11} /> {result.entityType === 'document' ? 'Found in document' : result.entityType === 'note' ? 'Found in note' : 'Matching result'}</p>
+                        <p className="text-xs leading-6 text-violet-700 dark:text-violet-200"><HighlightedSnippet snippet={result.snippet} /></p>
+                      </div>
+                      <div className="mt-3 flex flex-wrap items-center gap-1.5">
                         {result.category && <Badge>{result.category}</Badge>}
                         {result.version && <Badge>v{result.version}</Badge>}
                         {result.tags.slice(0, 4).map((tag) => <Badge key={tag}>{tag}</Badge>)}
-                        <span className="ml-auto text-[10px] text-slate-400">Updated {formatDate(result.updatedAt)}</span>
+                        <span className="text-[10px] text-violet-400 sm:ml-auto">Updated {formatDate(result.updatedAt)}</span>
                       </div>
+                      <ResultLink result={result} query={query} />
                     </div>
                   </div>
-                </div>
+                </article>
               ))}
             </div>
           )}
@@ -98,4 +101,21 @@ export function SearchPage() {
       )}
     </div>
   );
+}
+
+function HighlightedSnippet({ snippet }: { snippet: string }) {
+  if (!snippet) return <>Match found in the title, category, tags or other metadata.</>;
+  const parts = snippet.split(/(\[\[\[PINIT_MATCH\]\]\][\s\S]*?\[\[\[\/PINIT_MATCH\]\]\])/g);
+  return <>{parts.map((part, index) => part.startsWith('[[[PINIT_MATCH]]]')
+    ? <mark key={index} className="rounded bg-amber-200 px-1 py-0.5 font-semibold text-violet-950 dark:bg-amber-500/70 dark:text-white">{part.replace('[[[PINIT_MATCH]]]', '').replace('[[[/PINIT_MATCH]]]', '')}</mark>
+    : part)}</>;
+}
+
+function ResultLink({ result, query }: { result: SearchResult; query: string }) {
+  const target = result.entityType === 'document'
+    ? `/documents/${result.entityId}?q=${encodeURIComponent(query)}`
+    : result.entityType === 'integration' && result.integrationFolderId
+      ? `/integrations?folder=${result.integrationFolderId}`
+      : '/notes';
+  return <Link to={target} className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-coral-600 hover:text-coral-700 hover:underline">Open {result.entityType} <ArrowUpRight size={13} /></Link>;
 }

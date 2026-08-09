@@ -40,6 +40,8 @@ describe('local knowledge persistence', () => {
     });
 
     expect(search(database, 'RabbitMQ')[0]?.entityId).toBe(note.id);
+    expect(search(database, 'rabbit')[0]?.entityId).toBe(note.id);
+    expect(search(database, 'RABBIT')[0]?.entityId).toBe(note.id);
     expect(search(database, 'Altenar AND integration')[0]?.entityId).toBe(note.id);
 
     deleteNote(database, note.id);
@@ -62,6 +64,23 @@ describe('local knowledge persistence', () => {
     const phraseResults = search(database, '"Debit transactions"');
     expect(phraseResults[0]?.entityId).toBe(document.id);
     expect(search(database, '2.4')[0]?.entityId).toBe(document.id);
+  });
+
+  it('indexes image titles and filenames without requiring extracted text', () => {
+    const image = createDocument(
+      database,
+      { title: 'Summer inspiration board', category: 'Images', tags: ['moodboard'], version: '1.0' },
+      {
+        storedFilename: 'generated-image.png',
+        originalFilename: 'purple-folder-reference.png',
+        mimeType: 'image/png',
+        fileSize: 128,
+        extractedText: '',
+      },
+    );
+
+    expect(search(database, 'Summer')[0]?.entityId).toBe(image.id);
+    expect(search(database, 'purple-folder')[0]?.entityId).toBe(image.id);
   });
 
   it('stores nested integration folders and cascades their entries', () => {

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent, type InputHTMLAttributes,
 import type { Task } from '@apotheke/contracts';
 import { CalendarDays, Check, ChevronLeft, ChevronRight, Circle, List, MoreVertical, Pencil, Plus, Sparkles, Trash2, X } from 'lucide-react';
 import { api, jsonRequest } from '../../lib/api';
+import { announceWorkspaceChange } from '../../lib/workspaceEvents';
 
 type TaskFilter = 'all' | 'open' | 'done';
 type TaskView = 'list' | 'calendar';
@@ -39,10 +40,12 @@ export function TasksPage() {
 
   const today = localDay(new Date());
   const filtered = tasks.filter((task) => filter === 'all' || filter === 'done' && task.completedAt || filter === 'open' && !task.completedAt);
-  const todayTasks = filtered.filter((task) => task.dueAt && localDay(task.dueAt) === today);
-  const upcomingTasks = filtered.filter((task) => task.dueAt && localDay(task.dueAt) > today);
+  const activeTasks = filtered.filter((task) => !task.completedAt);
+  const completedTasks = filtered.filter((task) => task.completedAt);
+  const todayTasks = activeTasks.filter((task) => task.dueAt && localDay(task.dueAt) === today);
+  const upcomingTasks = activeTasks.filter((task) => task.dueAt && localDay(task.dueAt) > today);
   const overdueTasks = filtered.filter((task) => task.dueAt && localDay(task.dueAt) < today && !task.completedAt);
-  const undatedTasks = filtered.filter((task) => !task.dueAt);
+  const undatedTasks = activeTasks.filter((task) => !task.dueAt);
 
   const weekStats = useMemo(() => {
     const start = new Date(); start.setHours(0, 0, 0, 0);
@@ -69,6 +72,7 @@ export function TasksPage() {
     try {
       await api(editingTask ? `/tasks/${editingTask.id}` : '/tasks', jsonRequest(editingTask ? 'PATCH' : 'POST', payload));
       await load();
+      announceWorkspaceChange('tasks');
       closeModal();
     } catch (reason) { setError((reason as Error).message); }
   }
@@ -76,12 +80,14 @@ export function TasksPage() {
   async function toggle(task: Task) {
     await api(`/tasks/${task.id}`, jsonRequest('PATCH', { completed: !task.completedAt }));
     await load();
+    announceWorkspaceChange('tasks');
   }
 
   async function remove(task: Task) {
     if (!window.confirm(`Delete “${task.title}”?`)) return;
     await api(`/tasks/${task.id}`, { method: 'DELETE' });
     await load();
+    announceWorkspaceChange('tasks');
   }
 
   function newTask(day?: string) { setEditingTask(null); setSelectedDay(day ?? null); setModalOpen(true); }
@@ -111,6 +117,7 @@ export function TasksPage() {
             <TaskGroup title="Upcoming" tasks={upcomingTasks} onToggle={toggle} onEdit={editTask} onRemove={remove} />
             <TaskGroup title="Overdue" tasks={overdueTasks} onToggle={toggle} onEdit={editTask} onRemove={remove} danger />
             <TaskGroup title="No deadline" tasks={undatedTasks} onToggle={toggle} onEdit={editTask} onRemove={remove} />
+            <TaskGroup title="Completed" tasks={completedTasks} onToggle={toggle} onEdit={editTask} onRemove={remove} completed />
             {filtered.length === 0 && <div className="flex min-h-52 flex-col items-center justify-center text-center"><Check className="mb-3 text-teal-400" size={24} /><p className="text-sm font-semibold text-violet-900 dark:text-violet-100">Nothing here</p><p className="mt-1 text-xs text-violet-400">Create a task or choose another filter.</p></div>}
           </section>
           <WeekSummary {...weekStats} />
@@ -124,9 +131,9 @@ export function TasksPage() {
   );
 }
 
-function TaskGroup({ title, tasks, onToggle, onEdit, onRemove, danger = false }: { title: string; tasks: Task[]; onToggle: (task: Task) => Promise<void>; onEdit: (task: Task) => void; onRemove: (task: Task) => Promise<void>; danger?: boolean }) {
+function TaskGroup({ title, tasks, onToggle, onEdit, onRemove, danger = false, completed = false }: { title: string; tasks: Task[]; onToggle: (task: Task) => Promise<void>; onEdit: (task: Task) => void; onRemove: (task: Task) => Promise<void>; danger?: boolean; completed?: boolean }) {
   if (tasks.length === 0) return null;
-  return <div className="border-b border-violet-100 p-5 last:border-0 dark:border-violet-800"><h2 className={`mb-3 font-serif text-lg font-semibold ${danger ? 'text-red-500' : 'text-violet-950 dark:text-violet-50'}`}>{title}</h2><div className="space-y-2">{tasks.map((task, index) => <div key={task.id} className="group flex items-center gap-3 rounded-xl border border-violet-100 px-3 py-2.5 transition hover:border-violet-200 hover:shadow-sm dark:border-violet-800 dark:hover:border-violet-600"><button onClick={() => void onToggle(task)} className={task.completedAt ? 'text-teal-500' : 'text-violet-400'}>{task.completedAt ? <Check size={18} /> : <Circle size={18} />}</button><button onClick={() => onEdit(task)} className="min-w-0 flex-1 text-left"><span className={`block truncate text-xs font-semibold ${task.completedAt ? 'text-violet-300 line-through' : 'text-violet-900 dark:text-violet-100'}`}>{task.title}</span>{task.description && <span className="mt-0.5 block truncate text-[10px] text-violet-400">{task.description}</span>}</button>{task.dueAt && <span className="hidden text-[10px] text-violet-400 sm:block">{formatDeadline(task.dueAt)}</span>}<span className={`h-2 w-2 rounded-full ${danger ? 'bg-red-500' : index % 3 === 0 ? 'bg-coral-500' : index % 3 === 1 ? 'bg-amber-400' : 'bg-teal-400'}`} /><div className="relative flex gap-1 opacity-0 transition group-hover:opacity-100"><button onClick={() => onEdit(task)} className="p-1 text-violet-300 hover:text-violet-600"><Pencil size={13} /></button><button onClick={() => void onRemove(task)} className="p-1 text-violet-300 hover:text-red-500"><Trash2 size={13} /></button><MoreVertical size={14} className="text-violet-300" /></div></div>)}</div></div>;
+  return <div className="border-b border-violet-100 p-5 last:border-0 dark:border-violet-800"><h2 className={`mb-3 font-serif text-lg font-semibold ${danger ? 'text-red-500' : completed ? 'text-teal-600 dark:text-teal-300' : 'text-violet-950 dark:text-violet-50'}`}>{title}</h2><div className="space-y-2">{tasks.map((task, index) => <div key={task.id} className={`group flex items-center gap-3 rounded-xl border px-3 py-2.5 transition hover:shadow-sm ${completed ? 'border-teal-100 bg-teal-50/40 hover:border-teal-200 dark:border-teal-900 dark:bg-teal-950/20' : 'border-violet-100 hover:border-violet-200 dark:border-violet-800 dark:hover:border-violet-600'}`}><button onClick={() => void onToggle(task)} className={task.completedAt ? 'text-teal-500' : 'text-violet-400'} aria-label={task.completedAt ? 'Mark as open' : 'Mark as done'}>{task.completedAt ? <Check size={18} /> : <Circle size={18} />}</button><button onClick={() => onEdit(task)} className="min-w-0 flex-1 text-left"><span className={`block truncate text-xs font-semibold ${task.completedAt ? 'text-violet-400 line-through dark:text-violet-500' : 'text-violet-900 dark:text-violet-100'}`}>{task.title}</span>{task.description && <span className="mt-0.5 block truncate text-[10px] text-violet-400">{task.description}</span>}</button>{task.dueAt && <span className="hidden text-[10px] text-violet-400 sm:block">{formatDeadline(task.dueAt)}</span>}<span className={`h-2 w-2 rounded-full ${completed ? 'bg-teal-400' : danger ? 'bg-red-500' : index % 3 === 0 ? 'bg-coral-500' : index % 3 === 1 ? 'bg-amber-400' : 'bg-teal-400'}`} /><div className="relative flex gap-1 opacity-0 transition group-hover:opacity-100"><button onClick={() => onEdit(task)} className="p-1 text-violet-300 hover:text-violet-600"><Pencil size={13} /></button><button onClick={() => void onRemove(task)} className="p-1 text-violet-300 hover:text-red-500"><Trash2 size={13} /></button><MoreVertical size={14} className="text-violet-300" /></div></div>)}</div></div>;
 }
 
 function WeekSummary({ total, done, open, overdue, percent }: { total: number; done: number; open: number; overdue: number; percent: number }) {
