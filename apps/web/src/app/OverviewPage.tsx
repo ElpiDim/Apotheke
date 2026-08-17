@@ -118,6 +118,7 @@ function HeroArtwork() {
       </div>
       <div className="absolute right-[25%] top-[28%] h-40 w-28 rotate-[15deg] rounded-xl bg-violet-800 p-4 shadow-2xl ring-4 ring-violet-700"><BookOpen className="mx-auto mt-9 text-violet-200" size={36} /><div className="absolute right-2 top-3 h-5 w-12 rounded bg-violet-300/70" /></div>
       <div className="absolute left-[49%] top-[48%] h-20 w-20 rotate-6 rounded-lg bg-amber-300 p-3 shadow-xl"><div className="mt-7 h-px w-10 rotate-6 bg-violet-700" /><div className="mt-2 h-px w-8 -rotate-6 bg-violet-700" /></div>
+      <img src="/pini-mascot.png" alt="Pini, your Peanut assistant" className="absolute bottom-[9%] right-[8%] z-10 max-h-[132px] w-auto drop-shadow-[0_12px_12px_rgba(48,27,90,0.28)] sm:max-h-[155px] lg:max-h-[175px]" />
       <Sparkles className="absolute right-[18%] top-[14%] text-amber-200" size={22} />
       <Sparkles className="absolute bottom-[18%] left-[17%] text-white" size={15} />
       <div className="absolute bottom-[15%] right-[10%] h-12 w-24 rotate-12 border-t-2 border-violet-900" />

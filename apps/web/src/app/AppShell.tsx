@@ -19,6 +19,7 @@ import {
 import { NavLink, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { onWorkspaceChange } from '../lib/workspaceEvents';
+import { PiniAssistant } from '../components/PiniAssistant';
 
 const navItems = [
   { to: '/', label: 'Overview', icon: LayoutDashboard, end: true },
@@ -46,8 +47,8 @@ function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose: () => 
 
   return (
     <aside className={`fixed inset-y-0 left-0 z-30 flex w-60 flex-col border-r border-violet-700 bg-gradient-to-b from-violet-900 to-violet-950 text-violet-100 shadow-xl shadow-violet-950/10 transition-transform dark:border-violet-200 dark:from-[#f7f4ff] dark:to-[#ebe5fb] dark:text-violet-950 dark:shadow-black/20 sm:translate-x-0 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-      <div className="relative flex h-36 items-center justify-center border-b border-violet-700/70 px-3 dark:border-violet-200">
-        <img src="/pinit-logo.png" alt="Pinit logo" className="h-auto w-[205px] shrink-0 drop-shadow-[0_12px_18px_rgba(20,10,55,0.28)]" />
+      <div className="relative flex h-24 items-center justify-center border-b border-violet-700/70 px-3 dark:border-violet-200">
+        <img src="/peanut-logo.png" alt="Peanut logo" className="h-auto w-[145px] shrink-0 drop-shadow-[0_8px_12px_rgba(20,10,55,0.24)]" />
         <button onClick={onClose} aria-label="Close navigation" className="absolute right-3 top-3 rounded-lg p-1.5 text-violet-300 hover:bg-violet-800 dark:text-violet-500 dark:hover:bg-violet-100 sm:hidden"><X size={17} /></button>
       </div>
 
@@ -160,9 +161,9 @@ function TaskNotifications() {
     if (permission === 'default') permission = await Notification.requestPermission();
     const storageKey = `pinit-task-reminder-${today}`;
     if (permission === 'granted' && !sessionStorage.getItem(storageKey)) {
-      new Notification('Pinit task reminders', {
+      new Notification('Peanut task reminders', {
         body: `${overdue.length} overdue · ${dueToday.length} due today`,
-        icon: '/pinit-logo.png',
+        icon: '/peanut-logo.png',
       });
       sessionStorage.setItem(storageKey, 'shown');
     }
@@ -193,6 +194,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <main className="pt-16 sm:ml-60">
         <div className="app-content mx-auto max-w-[1440px] p-4 sm:p-6 lg:p-8">{children}</div>
       </main>
+      <PiniAssistant />
     </div>
   );
 }

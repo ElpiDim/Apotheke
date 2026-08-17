@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { DocumentRecord, ImportDocumentFields } from '@apotheke/contracts';
 import type { ApothekeDatabase } from '../../database/database.js';
 import { ensureCategory, ensureTags } from '../categories/taxonomyRepository.js';
-import { reindexDocument } from '../search/indexer.js';
+import { reindexDocument, removeFromIndex } from '../search/indexer.js';
 import { AppError } from '../../middleware/errors.js';
 
 interface DocumentRow {
@@ -111,6 +111,16 @@ export function getDocumentForViewer(database: ApothekeDatabase, documentId: str
   if (!version) throw new AppError(404, 'Document file not found.', 'DOCUMENT_FILE_NOT_FOUND');
 
   return { document: hydrateDocument(database, row), ...version };
+}
+
+export function deleteDocument(database: ApothekeDatabase, documentId: string): string {
+  const { storedFilename } = getDocumentForViewer(database, documentId);
+  database.transaction(() => {
+    removeFromIndex(database, 'document', documentId);
+    const result = database.prepare('DELETE FROM documents WHERE id = ?').run(documentId);
+    if (result.changes === 0) throw new AppError(404, 'Document not found.', 'DOCUMENT_NOT_FOUND');
+  })();
+  return storedFilename;
 }
 
 export function createDocument(

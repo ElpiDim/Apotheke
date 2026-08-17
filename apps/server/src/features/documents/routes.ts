@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import path from 'node:path';
+import fs from 'node:fs/promises';
 import { database } from '../../database/context.js';
 import { config } from '../../config/config.js';
-import { getDocumentForViewer, listDocuments } from './documentRepository.js';
+import { deleteDocument, getDocumentForViewer, listDocuments } from './documentRepository.js';
 import { importDocument } from './documentService.js';
 import { documentUpload } from './upload.js';
 
@@ -22,6 +23,12 @@ documentsRouter.get('/:id/file', (request, response) => {
   response.type(document.currentVersion.mimeType);
   response.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(document.currentVersion.originalFilename)}`);
   response.sendFile(path.join(config.filesDir, storedFilename));
+});
+
+documentsRouter.delete('/:id', async (request, response) => {
+  const storedFilename = deleteDocument(database, request.params.id);
+  await fs.rm(path.join(config.filesDir, storedFilename), { force: true });
+  response.status(204).end();
 });
 
 documentsRouter.post('/import', documentUpload.single('file'), async (request, response) => {

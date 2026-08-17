@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { openDatabase, type ApothekeDatabase } from '../src/database/database.js';
-import { createDocument } from '../src/features/documents/documentRepository.js';
+import { createDocument, deleteDocument, listDocuments } from '../src/features/documents/documentRepository.js';
 import { createNote, deleteNote } from '../src/features/notes/noteRepository.js';
 import {
   createIntegrationEntry,
@@ -81,6 +81,9 @@ describe('local knowledge persistence', () => {
 
     expect(search(database, 'Summer')[0]?.entityId).toBe(image.id);
     expect(search(database, 'purple-folder')[0]?.entityId).toBe(image.id);
+    expect(deleteDocument(database, image.id)).toBe('generated-image.png');
+    expect(listDocuments(database)).toHaveLength(0);
+    expect(search(database, 'Summer')).toHaveLength(0);
   });
 
   it('stores nested integration folders and cascades their entries', () => {

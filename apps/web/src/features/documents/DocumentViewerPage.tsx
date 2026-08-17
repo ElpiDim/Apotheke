@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import type { DocumentRecord } from '@apotheke/contracts';
-import { ArrowLeft, Download, FileSearch, FileText, Image as ImageIcon, Tag } from 'lucide-react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, Download, FileSearch, FileText, Image as ImageIcon, Tag, Trash2 } from 'lucide-react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { formatBytes, formatDate } from '../../lib/format';
+import { announceWorkspaceChange } from '../../lib/workspaceEvents';
 
 interface ViewerResponse {
   document: DocumentRecord;
@@ -12,6 +13,7 @@ interface ViewerResponse {
 
 export function DocumentViewerPage() {
   const { documentId = '' } = useParams();
+  const navigate = useNavigate();
   const [params] = useSearchParams();
   const searchQuery = params.get('q')?.trim() ?? '';
   const [data, setData] = useState<ViewerResponse | null>(null);
@@ -33,12 +35,24 @@ export function DocumentViewerPage() {
   const isPdf = extension === 'pdf' || document.currentVersion.mimeType === 'application/pdf';
   const isImage = document.currentVersion.mimeType.startsWith('image/');
 
+  async function remove() {
+    if (!window.confirm(`Delete “${document.title}” permanently?`)) return;
+    try {
+      await api(`/documents/${document.id}`, { method: 'DELETE' });
+      announceWorkspaceChange('documents', 'categories');
+      navigate(isImage ? '/images' : '/documents', { replace: true });
+    } catch (reason) {
+      setError((reason as Error).message);
+    }
+  }
+
   return (
     <div className="overflow-hidden rounded-[24px] border border-violet-100 bg-white shadow-[0_12px_36px_rgba(82,65,168,0.09)] dark:border-violet-800 dark:bg-[#211b35]">
       <header className="flex flex-wrap items-center gap-3 border-b border-violet-100 bg-[#fffdf9] px-4 py-3 dark:border-violet-800 dark:bg-[#1d1830] sm:px-5">
         <Link to="/documents" className="rounded-xl p-2 text-violet-400 hover:bg-violet-100 hover:text-violet-700 dark:hover:bg-violet-900 dark:hover:text-white" aria-label="Back to documents"><ArrowLeft size={18} /></Link>
         <div className={`rounded-xl p-2.5 ${isPdf ? 'bg-red-50 text-red-500 dark:bg-red-950' : isImage ? 'bg-fuchsia-50 text-fuchsia-500 dark:bg-fuchsia-950' : 'bg-violet-100 text-violet-600 dark:bg-violet-900 dark:text-violet-300'}`}>{isImage ? <ImageIcon size={18} /> : <FileText size={18} />}</div>
         <div className="min-w-0 flex-1"><h1 className="truncate text-sm font-semibold text-violet-950 dark:text-violet-50">{document.title}</h1><p className="truncate text-[10px] text-violet-400">{document.currentVersion.originalFilename} · {formatBytes(document.currentVersion.fileSize)}</p></div>
+        <button onClick={() => void remove()} aria-label={`Delete ${document.title}`} className="rounded-xl p-2.5 text-violet-300 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"><Trash2 size={16} /></button>
         <a href={fileUrl} download={document.currentVersion.originalFilename} className="flex items-center gap-2 rounded-xl bg-coral-500 px-3.5 py-2 text-xs font-semibold text-white hover:bg-coral-600"><Download size={14} /> Download</a>
       </header>
 

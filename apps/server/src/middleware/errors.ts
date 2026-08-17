@@ -38,6 +38,6 @@ export const errorHandler: ErrorRequestHandler = (error, _request, response, _ne
   console.error(error);
   response.status(500).json({
     error: 'INTERNAL_ERROR',
-    message: 'Pinit could not complete the request.',
+    message: 'Peanut could not complete the request.',
   });
 };

@@ -12,12 +12,12 @@ async function parseError(response: Response): Promise<ApiError> {
   try {
     const body = await response.json() as { message?: string; error?: string };
     return new ApiError(
-      body.message ?? 'Pinit could not complete the request.',
+      body.message ?? 'Peanut could not complete the request.',
       response.status,
       body.error ?? 'API_ERROR',
     );
   } catch {
-    return new ApiError('Pinit could not complete the request.', response.status, 'API_ERROR');
+    return new ApiError('Peanut could not complete the request.', response.status, 'API_ERROR');
   }
 }
 

@@ -79,7 +79,7 @@ export function DocumentsPage({ initialFilter = 'all' }: { initialFilter?: FileF
 
   return (
     <div onDragEnter={dragOver} onDragOver={dragOver} onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragActive(false); }} onDrop={drop}>
-      {dragActive && <div className="pointer-events-none fixed inset-4 z-40 flex items-center justify-center rounded-[28px] border-2 border-dashed border-violet-400 bg-violet-100/90 text-center backdrop-blur-sm dark:bg-violet-950/90 sm:left-64"><div><FilePlus2 size={38} className="mx-auto mb-3 text-coral-500" /><p className="font-serif text-xl font-semibold text-violet-950 dark:text-white">Drop your file here</p><p className="mt-1 text-xs text-violet-500 dark:text-violet-300">Documents or images</p></div></div>}
+      {dragActive && <div className="pointer-events-none fixed inset-4 z-40 flex items-center justify-center rounded-[28px] border-2 border-dashed border-violet-400 bg-violet-100/90 text-center backdrop-blur-sm dark:bg-violet-950/90 sm:left-64"><div><img src="/pini-mascot.png" alt="" className="mx-auto mb-2 max-h-32 w-auto drop-shadow-[0_10px_10px_rgba(69,35,104,0.2)]" /><FilePlus2 size={24} className="mx-auto mb-2 text-coral-500" /><p className="font-serif text-xl font-semibold text-violet-950 dark:text-white">Drop it here — Pini’s got it!</p><p className="mt-1 text-xs text-violet-500 dark:text-violet-300">Documents or images</p></div></div>}
       <section className="relative mb-4 min-h-44 overflow-visible px-5 py-5 sm:px-6 sm:py-6 lg:px-8">
         <div className="documents-title-blob" />
         <div className="absolute left-[390px] top-1 hidden h-11 w-11 rounded-full bg-teal-200 shadow-lg xl:block" />
@@ -93,7 +93,7 @@ export function DocumentsPage({ initialFilter = 'all' }: { initialFilter?: FileF
       </section>
 
       {!loading && documents.length === 0 ? (
-        <EmptyState icon={FilePlus2} title="No files yet" description="Import a document or image. Pinit will make its title, filename, category and tags searchable." action={<button onClick={() => setImportOpen(true)} className="text-sm font-semibold text-violet-600 hover:text-coral-600">Import your first file</button>} />
+        <EmptyState icon={FilePlus2} title="No files yet" description="Import a document or image. Peanut will make its title, filename, category and tags searchable." action={<button onClick={() => setImportOpen(true)} className="text-sm font-semibold text-violet-600 hover:text-coral-600">Import your first file</button>} />
       ) : (
         <>
           <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
