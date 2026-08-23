@@ -64,6 +64,20 @@ export const searchResponseSchema = z.object({
     query: z.string(),
     results: z.array(searchResultSchema),
 });
+export const extractiveAnswerSourceSchema = z.object({
+    entityType: z.enum(['document', 'note', 'integration']),
+    entityId: entityIdSchema,
+    title: z.string(),
+    excerpt: z.string(),
+    category: z.string().nullable(),
+    mimeType: z.string().nullable(),
+    integrationFolderId: entityIdSchema.nullable(),
+});
+export const extractiveAnswerResponseSchema = z.object({
+    question: z.string(),
+    answer: z.string().nullable(),
+    sources: z.array(extractiveAnswerSourceSchema),
+});
 export const integrationFolderSchema = z.object({
     id: entityIdSchema,
     name: z.string(),

@@ -78,6 +78,22 @@ export const searchResponseSchema = z.object({
   results: z.array(searchResultSchema),
 });
 
+export const extractiveAnswerSourceSchema = z.object({
+  entityType: z.enum(['document', 'note', 'integration']),
+  entityId: entityIdSchema,
+  title: z.string(),
+  excerpt: z.string(),
+  category: z.string().nullable(),
+  mimeType: z.string().nullable(),
+  integrationFolderId: entityIdSchema.nullable(),
+});
+
+export const extractiveAnswerResponseSchema = z.object({
+  question: z.string(),
+  answer: z.string().nullable(),
+  sources: z.array(extractiveAnswerSourceSchema),
+});
+
 export const integrationFolderSchema = z.object({
   id: entityIdSchema,
   name: z.string(),
@@ -159,6 +175,8 @@ export type Note = z.infer<typeof noteSchema>;
 export type ImportDocumentFields = z.infer<typeof importDocumentFieldsSchema>;
 export type SearchResult = z.infer<typeof searchResultSchema>;
 export type SearchResponse = z.infer<typeof searchResponseSchema>;
+export type ExtractiveAnswerSource = z.infer<typeof extractiveAnswerSourceSchema>;
+export type ExtractiveAnswerResponse = z.infer<typeof extractiveAnswerResponseSchema>;
 export type IntegrationFolder = z.infer<typeof integrationFolderSchema>;
 export type IntegrationEntry = z.infer<typeof integrationEntrySchema>;
 export type CreateIntegrationFolderInput = z.infer<typeof createIntegrationFolderSchema>;

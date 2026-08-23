@@ -103,6 +103,36 @@ export declare const searchResponseSchema: z.ZodObject<{
         updatedAt: z.ZodString;
     }, z.core.$strip>>;
 }, z.core.$strip>;
+export declare const extractiveAnswerSourceSchema: z.ZodObject<{
+    entityType: z.ZodEnum<{
+        document: "document";
+        integration: "integration";
+        note: "note";
+    }>;
+    entityId: z.ZodString;
+    title: z.ZodString;
+    excerpt: z.ZodString;
+    category: z.ZodNullable<z.ZodString>;
+    mimeType: z.ZodNullable<z.ZodString>;
+    integrationFolderId: z.ZodNullable<z.ZodString>;
+}, z.core.$strip>;
+export declare const extractiveAnswerResponseSchema: z.ZodObject<{
+    question: z.ZodString;
+    answer: z.ZodNullable<z.ZodString>;
+    sources: z.ZodArray<z.ZodObject<{
+        entityType: z.ZodEnum<{
+            document: "document";
+            integration: "integration";
+            note: "note";
+        }>;
+        entityId: z.ZodString;
+        title: z.ZodString;
+        excerpt: z.ZodString;
+        category: z.ZodNullable<z.ZodString>;
+        mimeType: z.ZodNullable<z.ZodString>;
+        integrationFolderId: z.ZodNullable<z.ZodString>;
+    }, z.core.$strip>>;
+}, z.core.$strip>;
 export declare const integrationFolderSchema: z.ZodObject<{
     id: z.ZodString;
     name: z.ZodString;
@@ -173,6 +203,8 @@ export type Note = z.infer<typeof noteSchema>;
 export type ImportDocumentFields = z.infer<typeof importDocumentFieldsSchema>;
 export type SearchResult = z.infer<typeof searchResultSchema>;
 export type SearchResponse = z.infer<typeof searchResponseSchema>;
+export type ExtractiveAnswerSource = z.infer<typeof extractiveAnswerSourceSchema>;
+export type ExtractiveAnswerResponse = z.infer<typeof extractiveAnswerResponseSchema>;
 export type IntegrationFolder = z.infer<typeof integrationFolderSchema>;
 export type IntegrationEntry = z.infer<typeof integrationEntrySchema>;
 export type CreateIntegrationFolderInput = z.infer<typeof createIntegrationFolderSchema>;

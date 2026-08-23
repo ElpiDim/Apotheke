@@ -1,12 +1,13 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { importDocumentFieldsSchema, type DocumentRecord } from '@apotheke/contracts';
 import type { Express } from 'express';
 import { config } from '../../config/config.js';
 import { database } from '../../database/context.js';
 import { AppError } from '../../middleware/errors.js';
-import { createDocument } from './documentRepository.js';
+import { createDocument, findDuplicateDocument } from './documentRepository.js';
 import { getSupportedExtension, supportedDocumentTypes } from './fileTypes.js';
 import { extractDocumentText } from './textExtractor.js';
 
@@ -51,6 +52,11 @@ export async function importDocument(
 
   let finalPath: string | null = null;
   try {
+    const contentHash = createHash('sha256').update(await fs.readFile(file.path)).digest('hex');
+    const duplicate = findDuplicateDocument(database, contentHash, file.originalname, file.size);
+    if (duplicate) {
+      throw new AppError(409, `This file is already saved as “${duplicate.title}”.`, 'DUPLICATE_DOCUMENT');
+    }
     const extractedText = await extractDocumentText(file.path, extension);
     const storedFilename = `${randomUUID()}${extension}`;
     finalPath = path.join(config.filesDir, storedFilename);
@@ -62,6 +68,7 @@ export async function importDocument(
       mimeType: supportedDocumentTypes[extension],
       fileSize: file.size,
       extractedText,
+      contentHash,
     });
   } catch (error) {
     await fs.rm(file.path, { force: true });

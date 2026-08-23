@@ -32,6 +32,7 @@ export interface StoredImport {
   mimeType: string;
   fileSize: number;
   extractedText: string;
+  contentHash: string;
 }
 
 const selectDocuments = `
@@ -97,6 +98,13 @@ export interface DocumentViewerRecord {
   extractedText: string;
 }
 
+export function findDuplicateDocument(database: ApothekeDatabase, contentHash: string, originalFilename: string, fileSize: number): DocumentRecord | null {
+  const row = database
+    .prepare(`${selectDocuments} WHERE v.content_hash = ? OR (v.content_hash IS NULL AND v.original_filename = ? COLLATE NOCASE AND v.file_size = ?) LIMIT 1`)
+    .get(contentHash, originalFilename, fileSize) as DocumentRow | undefined;
+  return row ? hydrateDocument(database, row) : null;
+}
+
 export function getDocumentForViewer(database: ApothekeDatabase, documentId: string): DocumentViewerRecord {
   const row = database
     .prepare(`${selectDocuments} WHERE d.id = ?`)
@@ -147,8 +155,8 @@ export function createDocument(
       .prepare(
         `INSERT INTO document_versions (
            id, document_id, version_label, original_filename, stored_filename,
-           mime_type, file_size, extracted_text, imported_at, is_current
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+           mime_type, file_size, extracted_text, imported_at, is_current, content_hash
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
       )
       .run(
         versionId,
@@ -160,6 +168,7 @@ export function createDocument(
         storedImport.fileSize,
         storedImport.extractedText,
         now,
+        storedImport.contentHash,
       );
 
     const insertTag = database.prepare(

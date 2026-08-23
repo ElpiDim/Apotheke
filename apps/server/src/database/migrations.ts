@@ -150,4 +150,14 @@ export const migrations: readonly Migration[] = [
       CREATE INDEX tasks_completed_at_idx ON tasks(completed_at, updated_at DESC);
     `,
   },
+  {
+    id: 6,
+    name: 'document_content_hashes',
+    sql: `
+      ALTER TABLE document_versions ADD COLUMN content_hash TEXT;
+      CREATE INDEX document_versions_content_hash_idx
+        ON document_versions(content_hash)
+        WHERE content_hash IS NOT NULL;
+    `,
+  },
 ];

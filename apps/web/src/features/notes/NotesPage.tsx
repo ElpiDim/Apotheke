@@ -5,11 +5,13 @@ import { EmptyState } from '../../components/EmptyState';
 import { api, ApiError, jsonRequest } from '../../lib/api';
 import { formatDate } from '../../lib/format';
 import { announceWorkspaceChange } from '../../lib/workspaceEvents';
+import { useSearchParams } from 'react-router-dom';
 
 const emptyDraft: CreateNoteInput = { title: '', content: '', category: null, tags: [] };
 type NoteFilter = 'all' | 'important' | 'recent';
 
 export function NotesPage() {
+  const [params, setParams] = useSearchParams();
   const [notes, setNotes] = useState<Note[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draft, setDraft] = useState<CreateNoteInput>(emptyDraft);
@@ -48,6 +50,14 @@ export function NotesPage() {
     setError(null);
     setEditorOpen(true);
   }
+
+  useEffect(() => {
+    if (params.get('action') !== 'new') return;
+    newNote();
+    const next = new URLSearchParams(params);
+    next.delete('action');
+    setParams(next, { replace: true });
+  }, [params, setParams]);
 
   function closeEditor() {
     setEditorOpen(false);

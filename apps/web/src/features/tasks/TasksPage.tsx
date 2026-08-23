@@ -3,6 +3,7 @@ import type { Task } from '@apotheke/contracts';
 import { CalendarDays, Check, ChevronLeft, ChevronRight, Circle, List, MoreVertical, Pencil, Plus, Sparkles, Trash2, X } from 'lucide-react';
 import { api, jsonRequest } from '../../lib/api';
 import { announceWorkspaceChange } from '../../lib/workspaceEvents';
+import { useSearchParams } from 'react-router-dom';
 
 type TaskFilter = 'all' | 'open' | 'done';
 type TaskView = 'list' | 'calendar';
@@ -22,6 +23,7 @@ function toDateTimeInput(value: string): string {
 }
 
 export function TasksPage() {
+  const [params, setParams] = useSearchParams();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [filter, setFilter] = useState<TaskFilter>('all');
   const [view, setView] = useState<TaskView>('list');
@@ -94,6 +96,14 @@ export function TasksPage() {
   function editTask(task: Task) { setEditingTask(task); setSelectedDay(null); setModalOpen(true); }
   function closeModal() { setModalOpen(false); setSelectedDay(null); setEditingTask(null); }
 
+  useEffect(() => {
+    if (params.get('action') !== 'new') return;
+    newTask();
+    const next = new URLSearchParams(params);
+    next.delete('action');
+    setParams(next, { replace: true });
+  }, [params, setParams]);
+
   return (
     <div>
       <section className="relative mb-4 min-h-40 px-5 py-5 sm:px-7">
@@ -138,7 +148,7 @@ function TaskGroup({ title, tasks, onToggle, onEdit, onRemove, danger = false, c
 
 function WeekSummary({ total, done, open, overdue, percent }: { total: number; done: number; open: number; overdue: number; percent: number }) {
   const complete = total > 0 && done === total;
-  return <aside className="relative h-fit overflow-hidden rounded-[24px] border border-violet-100 bg-white p-5 shadow-[0_12px_32px_rgba(82,65,168,0.08)] dark:border-violet-800 dark:bg-[#211b35]"><h2 className="font-serif text-lg font-semibold text-violet-950 dark:text-violet-50">This week</h2>{complete ? <div className="py-4 text-center"><img src="/pini-mascot.png" alt="Pini celebrating" className="mx-auto max-h-32 w-auto drop-shadow-[0_9px_9px_rgba(69,35,104,0.18)]" /><p className="mt-2 font-serif text-lg font-semibold text-violet-950 dark:text-white">You did it!</p><p className="mt-1 text-xs text-teal-600 dark:text-teal-300">Pini says: everything is done.</p></div> : <><div className="mx-auto mt-5 flex h-36 w-36 items-center justify-center rounded-full" style={{ background: `conic-gradient(#714cff ${percent * 3.6}deg, var(--apotheke-border) 0deg)` }}><div className="flex h-28 w-28 flex-col items-center justify-center rounded-full bg-white dark:bg-[#211b35]"><span className="text-2xl font-semibold text-violet-950 dark:text-violet-50">{done} / {total}</span><span className="mt-1 text-[10px] text-violet-400">tasks done</span></div></div><p className="mt-3 text-center text-xs font-semibold text-violet-600 dark:text-violet-300">{percent}% completed</p></>}<div className="mt-5 space-y-3 border-t border-violet-100 pt-4 text-xs dark:border-violet-800"><Stat color="bg-teal-400" label="Done" value={done} /><Stat color="bg-violet-400" label="Open" value={open} /><Stat color="bg-red-500" label="Overdue" value={overdue} /></div></aside>;
+  return <aside className="relative h-fit overflow-hidden rounded-[24px] border border-violet-100 bg-white p-5 shadow-[0_12px_32px_rgba(82,65,168,0.08)] dark:border-violet-800 dark:bg-[#211b35]"><h2 className="font-serif text-lg font-semibold text-violet-950 dark:text-violet-50">This week</h2>{complete ? <div className="py-4 text-center"><img src="/pini-congrats.png" alt="Pini celebrating with one hand raised" className="mx-auto max-h-36 w-auto drop-shadow-[0_9px_9px_rgba(69,35,104,0.18)]" /><p className="mt-2 font-serif text-lg font-semibold text-violet-950 dark:text-white">You did it!</p><p className="mt-1 text-xs text-teal-600 dark:text-teal-300">Pini says: everything is done.</p></div> : <><div className="mx-auto mt-5 flex h-36 w-36 items-center justify-center rounded-full" style={{ background: `conic-gradient(#714cff ${percent * 3.6}deg, var(--apotheke-border) 0deg)` }}><div className="flex h-28 w-28 flex-col items-center justify-center rounded-full bg-white dark:bg-[#211b35]"><span className="text-2xl font-semibold text-violet-950 dark:text-violet-50">{done} / {total}</span><span className="mt-1 text-[10px] text-violet-400">tasks done</span></div></div><p className="mt-3 text-center text-xs font-semibold text-violet-600 dark:text-violet-300">{percent}% completed</p></>}<div className="mt-5 space-y-3 border-t border-violet-100 pt-4 text-xs dark:border-violet-800"><Stat color="bg-teal-400" label="Done" value={done} /><Stat color="bg-violet-400" label="Open" value={open} /><Stat color="bg-red-500" label="Overdue" value={overdue} /></div></aside>;
 }
 
 function Stat({ color, label, value }: { color: string; label: string; value: number }) { return <div className="flex items-center"><span className={`mr-2 h-2 w-2 rounded-full ${color}`} /><span className="text-violet-500 dark:text-violet-300">{label}</span><span className="ml-auto font-semibold text-violet-800 dark:text-violet-100">{value}</span></div>; }

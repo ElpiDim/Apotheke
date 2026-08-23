@@ -14,7 +14,7 @@ import {
   updateIntegrationEntry,
   updateIntegrationFolder,
 } from '../src/features/integrations/integrationRepository.js';
-import { search } from '../src/features/search/searchService.js';
+import { answerQuestion, search } from '../src/features/search/searchService.js';
 import { createTask, deleteTask, listTasks, updateTask } from '../src/features/tasks/taskRepository.js';
 
 describe('local knowledge persistence', () => {
@@ -58,12 +58,17 @@ describe('local knowledge persistence', () => {
         mimeType: 'text/plain',
         fileSize: 42,
         extractedText: 'Debit transactions subtract funds from the player balance.',
+        contentHash: 'wallet-api-hash',
       },
     );
 
     const phraseResults = search(database, '"Debit transactions"');
     expect(phraseResults[0]?.entityId).toBe(document.id);
     expect(search(database, '2.4')[0]?.entityId).toBe(document.id);
+    const answer = answerQuestion(database, 'What happens to the player balance during debit transactions?');
+    expect(answer.answer).toContain('subtract funds');
+    expect(answer.answer).toBe('Debit transactions subtract funds from the player balance.');
+    expect(answer.sources[0]?.entityId).toBe(document.id);
   });
 
   it('indexes image titles and filenames without requiring extracted text', () => {
@@ -76,6 +81,7 @@ describe('local knowledge persistence', () => {
         mimeType: 'image/png',
         fileSize: 128,
         extractedText: '',
+        contentHash: 'image-hash',
       },
     );
 

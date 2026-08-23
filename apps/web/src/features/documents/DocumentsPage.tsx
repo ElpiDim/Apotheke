@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type DragEvent, type FormEvent, type InputHTMLAttributes } from 'react';
-import type { DocumentRecord } from '@apotheke/contracts';
+import type { Category, DocumentRecord, Tag } from '@apotheke/contracts';
 import { ChevronLeft, ChevronRight, FilePlus2, FileText, Image as ImageIcon, Plus, Search, Star, X } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { EmptyState } from '../../components/EmptyState';
 import { api, ApiError } from '../../lib/api';
 import { formatBytes, formatDate } from '../../lib/format';
@@ -15,6 +15,7 @@ function extensionOf(document: DocumentRecord): string {
 }
 
 export function DocumentsPage({ initialFilter = 'all' }: { initialFilter?: FileFilter }) {
+  const [params, setParams] = useSearchParams();
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [importOpen, setImportOpen] = useState(false);
@@ -28,6 +29,13 @@ export function DocumentsPage({ initialFilter = 'all' }: { initialFilter?: FileF
   const imagesPage = initialFilter === 'image';
 
   useEffect(() => { setFilter(initialFilter); }, [initialFilter]);
+  useEffect(() => {
+    if (params.get('action') !== 'import') return;
+    setImportOpen(true);
+    const next = new URLSearchParams(params);
+    next.delete('action');
+    setParams(next, { replace: true });
+  }, [params, setParams]);
 
   const load = useCallback(async () => {
     try {
@@ -137,6 +145,42 @@ function ImportDialog({ initialFile, onClose, onImported }: { initialFile: File 
   const [file, setFile] = useState<File | null>(initialFile);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [knownTags, setKnownTags] = useState<Tag[]>([]);
+  const [category, setCategory] = useState('');
+  const [tags, setTags] = useState('');
+  const [organized, setOrganized] = useState(false);
+
+  useEffect(() => {
+    void Promise.all([
+      api<{ categories: Category[] }>('/categories'),
+      api<{ tags: Tag[] }>('/tags'),
+    ]).then(([categoryResult, tagResult]) => {
+      setCategories(categoryResult.categories);
+      setKnownTags(tagResult.tags);
+    }).catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    if (!file) { setOrganized(false); return; }
+    const words = file.name.replace(/\.[^.]+$/, '').toLocaleLowerCase().split(/[^\p{L}\p{N}]+/u).filter((word) => word.length > 2);
+    const haystack = words.join(' ');
+    const matchedCategory = categories.find((item) => haystack.includes(item.name.toLocaleLowerCase()));
+    const rules: Array<[RegExp, string]> = [
+      [/invoice|budget|receipt|finance|payment|τιμολ|οικονομ/i, 'Finance'],
+      [/thesis|research|paper|study|έρευν|πτυχιακ/i, 'Research'],
+      [/meeting|minutes|agenda|συνάντη/i, 'Meetings'],
+      [/api|sdk|technical|code|developer/i, 'Technical'],
+      [/screenshot|photo|image|εικόνα/i, 'Images'],
+    ];
+    const ruleCategory = rules.find(([pattern]) => pattern.test(haystack))?.[1];
+    const matchedTags = knownTags.filter((tag) => words.some((word) => tag.name.toLocaleLowerCase().includes(word) || word.includes(tag.name.toLocaleLowerCase()))).slice(0, 5);
+    const extension = file.name.split('.').pop()?.toLocaleLowerCase();
+    const formatTag = extension && ['pdf', 'docx', 'txt', 'md', 'jpg', 'jpeg', 'png', 'webp'].includes(extension) ? extension.toUpperCase() : null;
+    setCategory((current) => current || matchedCategory?.name || ruleCategory || 'Inbox');
+    setTags((current) => current || [...new Set([...matchedTags.map((tag) => tag.name), ...(formatTag ? [formatTag] : [])])].join(', '));
+    setOrganized(true);
+  }, [file, categories, knownTags]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -151,7 +195,7 @@ function ImportDialog({ initialFile, onClose, onImported }: { initialFile: File 
     finally { setSaving(false); }
   }
 
-  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-violet-950/40 p-4 backdrop-blur-sm"><div className="w-full max-w-lg rounded-2xl border border-violet-100 bg-white shadow-2xl dark:border-violet-700 dark:bg-[#211b35]"><div className="flex items-start justify-between border-b border-violet-100 px-6 py-5 dark:border-violet-800"><div><h2 className="font-serif text-xl font-semibold text-violet-950 dark:text-violet-50">Import file</h2><p className="mt-1 text-xs text-violet-500 dark:text-violet-300">Documents and images · maximum 50 MB</p></div><button onClick={onClose} aria-label="Close" className="rounded-lg p-1.5 text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900"><X size={18} /></button></div><form onSubmit={submit} className="space-y-4 p-6"><label className="block"><span className="mb-1.5 block text-xs font-semibold text-violet-600 dark:text-violet-300">File</span><input name="file" type="file" accept=".pdf,.docx,.txt,.md,.markdown,.jpg,.jpeg,.png,.webp,.gif,.avif" onChange={(event) => setFile(event.target.files?.[0] ?? null)} className="block w-full rounded-xl border border-violet-200 bg-violet-50/50 px-3 py-2 text-xs text-violet-600 file:mr-3 file:rounded-lg file:border-0 file:bg-violet-200 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-violet-700 dark:border-violet-700 dark:bg-violet-950 dark:text-violet-300" />{file && <span className="mt-2 block truncate rounded-lg bg-teal-50 px-3 py-2 text-[11px] font-semibold text-teal-700 dark:bg-teal-950 dark:text-teal-300">Ready: {file.name}</span>}</label><div className="grid grid-cols-[1fr_100px] gap-4"><Field label="Title" name="title" placeholder="Defaults to filename" /><Field label="Version" name="version" defaultValue="1.0" /></div><Field label="Category" name="category" placeholder="e.g. SDK" /><Field label="Tags" name="tags" placeholder="API, wallet, integration" hint="Separate tags with commas." />{error && <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</div>}<div className="flex justify-end gap-2 pt-2"><button type="button" onClick={onClose} className="rounded-xl border border-violet-200 px-4 py-2 text-xs font-semibold text-violet-600 hover:bg-violet-50 dark:border-violet-700 dark:text-violet-300 dark:hover:bg-violet-900">Cancel</button><button disabled={saving} className="rounded-xl bg-coral-500 px-4 py-2 text-xs font-semibold text-white hover:bg-coral-600 disabled:opacity-50">{saving ? 'Importing…' : 'Import file'}</button></div></form></div></div>;
+  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-violet-950/40 p-4 backdrop-blur-sm"><div className="w-full max-w-lg rounded-2xl border border-violet-100 bg-white shadow-2xl dark:border-violet-700 dark:bg-[#211b35]"><div className="flex items-start justify-between border-b border-violet-100 px-6 py-5 dark:border-violet-800"><div><h2 className="font-serif text-xl font-semibold text-violet-950 dark:text-violet-50">Import file</h2><p className="mt-1 text-xs text-violet-500 dark:text-violet-300">Documents and images · maximum 50 MB</p></div><button onClick={onClose} aria-label="Close" className="rounded-lg p-1.5 text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900"><X size={18} /></button></div><form onSubmit={submit} className="space-y-4 p-6"><label className="block"><span className="mb-1.5 block text-xs font-semibold text-violet-600 dark:text-violet-300">File</span><input name="file" type="file" accept=".pdf,.docx,.txt,.md,.markdown,.jpg,.jpeg,.png,.webp,.gif,.avif" onChange={(event) => setFile(event.target.files?.[0] ?? null)} className="block w-full rounded-xl border border-violet-200 bg-violet-50/50 px-3 py-2 text-xs text-violet-600 file:mr-3 file:rounded-lg file:border-0 file:bg-violet-200 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-violet-700 dark:border-violet-700 dark:bg-violet-950 dark:text-violet-300" />{file && <span className="mt-2 block truncate rounded-lg bg-teal-50 px-3 py-2 text-[11px] font-semibold text-teal-700 dark:bg-teal-950 dark:text-teal-300">Ready: {file.name}</span>}</label>{organized && <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 dark:border-amber-800 dark:bg-amber-950/30"><img src="/pini-mascot.png" alt="" className="h-11 w-auto" /><div><p className="text-[11px] font-bold text-violet-800 dark:text-violet-100">Pini organized this automatically</p><p className="mt-0.5 text-[10px] leading-4 text-violet-500 dark:text-violet-300">Review or change the suggested category and tags before importing.</p></div></div>}<div className="grid grid-cols-[1fr_100px] gap-4"><Field label="Title" name="title" placeholder="Defaults to filename" /><Field label="Version" name="version" defaultValue="1.0" /></div><Field label="Category" name="category" value={category} onChange={(event) => setCategory(event.target.value)} placeholder="e.g. SDK" /><Field label="Tags" name="tags" value={tags} onChange={(event) => setTags(event.target.value)} placeholder="API, wallet, integration" hint="Pini suggests these from the filename and your existing organization." />{error && <div className={`rounded-xl border px-3 py-2 text-xs ${error.includes('already saved') ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300' : 'border-red-200 bg-red-50 text-red-700'}`}>{error}</div>}<div className="flex justify-end gap-2 pt-2"><button type="button" onClick={onClose} className="rounded-xl border border-violet-200 px-4 py-2 text-xs font-semibold text-violet-600 hover:bg-violet-50 dark:border-violet-700 dark:text-violet-300 dark:hover:bg-violet-900">Cancel</button><button disabled={saving} className="rounded-xl bg-coral-500 px-4 py-2 text-xs font-semibold text-white hover:bg-coral-600 disabled:opacity-50">{saving ? 'Checking & importing…' : 'Import file'}</button></div></form></div></div>;
 }
 
 function Field({ label, hint, ...props }: { label: string; hint?: string } & InputHTMLAttributes<HTMLInputElement>) {

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type DragEvent, type FormEvent, type InputHTMLAttributes, type ReactNode } from 'react';
 import type { IntegrationEntry, IntegrationFolder } from '@apotheke/contracts';
-import { ChevronRight, ExternalLink, FileText, Folder, FolderOpen, FolderPlus, HardDrive, Link2, Pencil, Plus, Sparkles, Trash2, UploadCloud, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, ExternalLink, FileText, Folder, FolderOpen, FolderPlus, HardDrive, Link2, Pencil, Plus, Sparkles, Trash2, UploadCloud, X } from 'lucide-react';
 import { EmptyState } from '../../components/EmptyState';
 import { api, jsonRequest } from '../../lib/api';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -24,6 +24,15 @@ function flattenFolders(folders: IntegrationFolder[], parentId: string | null = 
     ]);
 }
 
+function flattenVisibleFolders(folders: IntegrationFolder[], expanded: ReadonlySet<string>, parentId: string | null = null, depth = 0): FolderOption[] {
+  return folders
+    .filter((folder) => folder.parentId === parentId)
+    .flatMap((folder) => [
+      { ...folder, depth },
+      ...(expanded.has(folder.id) ? flattenVisibleFolders(folders, expanded, folder.id, depth + 1) : []),
+    ]);
+}
+
 export function IntegrationsPage() {
   const [params] = useSearchParams();
   const requestedFolderId = params.get('folder');
@@ -36,6 +45,7 @@ export function IntegrationsPage() {
   const [error, setError] = useState('');
   const [dragActive, setDragActive] = useState(false);
   const [uploadingDrop, setUploadingDrop] = useState(false);
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(() => new Set());
 
   async function load() {
     const result = await api<IntegrationWorkspace>('/integrations');
@@ -53,6 +63,7 @@ export function IntegrationsPage() {
   }, []);
 
   const folderOptions = useMemo(() => flattenFolders(workspace.folders), [workspace.folders]);
+  const visibleFolderOptions = useMemo(() => flattenVisibleFolders(workspace.folders, expandedFolders), [workspace.folders, expandedFolders]);
   const selectedFolder = workspace.folders.find((folder) => folder.id === selectedId) ?? null;
   const selectedEntries = workspace.entries.filter((entry) => entry.folderId === selectedId);
   const childFolders = workspace.folders.filter((folder) => folder.parentId === selectedId);
@@ -65,6 +76,24 @@ export function IntegrationsPage() {
     }
     return path;
   }, [selectedFolder, workspace.folders]);
+
+  useEffect(() => {
+    if (selectedPath.length < 2) return;
+    setExpandedFolders((current) => {
+      const next = new Set(current);
+      selectedPath.slice(0, -1).forEach((folder) => next.add(folder.id));
+      return next.size === current.size ? current : next;
+    });
+  }, [selectedPath]);
+
+  function toggleFolder(folderId: string) {
+    setExpandedFolders((current) => {
+      const next = new Set(current);
+      if (next.has(folderId)) next.delete(folderId);
+      else next.add(folderId);
+      return next;
+    });
+  }
 
   async function createFolder(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -227,17 +256,34 @@ export function IntegrationsPage() {
           <div className="grid flex-1 grid-cols-1 sm:grid-cols-[220px_minmax(0,1fr)] lg:grid-cols-[260px_minmax(0,1fr)]">
           <aside className="max-h-64 overflow-auto border-b border-violet-100 bg-violet-50/60 p-3 dark:border-violet-800 dark:bg-violet-950/50 sm:max-h-none sm:border-b-0 sm:border-r">
             <div className="mb-2 flex items-center gap-2 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-400"><FolderOpen size={14} /> Folders</div>
-            {folderOptions.map((folder) => (
-              <button
-                key={folder.id}
-                onClick={() => setSelectedId(folder.id)}
-                className={`mb-1 flex w-full items-center gap-2 rounded-xl py-2.5 pr-3 text-left text-sm transition ${selectedId === folder.id ? 'bg-white font-semibold text-violet-800 shadow-sm ring-1 ring-violet-100' : 'text-violet-600 hover:bg-white/70'}`}
-                style={{ paddingLeft: `${12 + folder.depth * 18}px` }}
-              >
-                <Folder size={17} className={selectedId === folder.id ? 'fill-amber-200 text-amber-500' : 'fill-amber-100 text-amber-400 dark:fill-amber-900/40'} />
-                <span className="truncate">{folder.name}</span>
-              </button>
-            ))}
+            {visibleFolderOptions.map((folder) => {
+              const hasChildren = workspace.folders.some((candidate) => candidate.parentId === folder.id);
+              const expanded = expandedFolders.has(folder.id);
+              return (
+                <div
+                  key={folder.id}
+                  className={`mb-1 flex w-full items-center rounded-xl text-sm transition ${selectedId === folder.id ? 'bg-white font-semibold text-violet-800 shadow-sm ring-1 ring-violet-100 dark:bg-[#28213e] dark:text-violet-100 dark:ring-violet-800' : 'text-violet-600 hover:bg-white/70 dark:text-violet-300 dark:hover:bg-violet-900/50'}`}
+                  style={{ paddingLeft: `${6 + folder.depth * 18}px` }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => hasChildren && toggleFolder(folder.id)}
+                    aria-label={hasChildren ? `${expanded ? 'Collapse' : 'Expand'} ${folder.name}` : undefined}
+                    className={`flex h-8 w-7 shrink-0 items-center justify-center rounded-lg text-violet-400 transition hover:bg-violet-100 hover:text-violet-700 dark:hover:bg-violet-800 ${hasChildren ? '' : 'invisible'}`}
+                  >
+                    {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedId(folder.id); if (hasChildren) setExpandedFolders((current) => new Set(current).add(folder.id)); }}
+                    className="flex min-w-0 flex-1 items-center gap-2 py-2.5 pr-3 text-left"
+                  >
+                    {selectedId === folder.id && expanded ? <FolderOpen size={17} className="shrink-0 fill-amber-200 text-amber-500" /> : <Folder size={17} className={selectedId === folder.id ? 'shrink-0 fill-amber-200 text-amber-500' : 'shrink-0 fill-amber-100 text-amber-400 dark:fill-amber-900/40'} />}
+                    <span className="truncate">{folder.name}</span>
+                  </button>
+                </div>
+              );
+            })}
           </aside>
 
           <section className="min-w-0 p-4 sm:p-6">

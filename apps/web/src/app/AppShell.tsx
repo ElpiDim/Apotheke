@@ -20,6 +20,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { onWorkspaceChange } from '../lib/workspaceEvents';
 import { PiniAssistant } from '../components/PiniAssistant';
+import { CommandPalette } from '../components/CommandPalette';
 
 const navItems = [
   { to: '/', label: 'Overview', icon: LayoutDashboard, end: true },
@@ -195,6 +196,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="app-content mx-auto max-w-[1440px] p-4 sm:p-6 lg:p-8">{children}</div>
       </main>
       <PiniAssistant />
+      <CommandPalette />
     </div>
   );
 }
