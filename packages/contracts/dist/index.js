@@ -153,4 +153,33 @@ export const updateTaskSchema = z.object({
     dueAt: z.iso.datetime({ offset: true }).nullable().optional(),
     completed: z.boolean().optional(),
 }).refine((value) => Object.keys(value).length > 0, 'At least one task field is required.');
+export const vaultEntrySchema = z.object({
+    id: entityIdSchema,
+    label: z.string(),
+    username: z.string(),
+    password: z.string(),
+    url: z.string(),
+    notes: z.string(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+});
+export const createVaultEntrySchema = z.object({
+    label: z.string().trim().min(1).max(160),
+    username: z.string().max(500).default(''),
+    password: z.string().min(1).max(5_000),
+    url: z.string().max(2_000).default(''),
+    notes: z.string().max(20_000).default(''),
+});
+export const updateVaultEntrySchema = createVaultEntrySchema.partial().refine((value) => Object.keys(value).length > 0, 'At least one vault field is required.');
+export const vaultPasswordSchema = z.object({
+    password: z.string().min(10).max(1_000),
+});
+export const userProfileSchema = z.object({
+    name: z.string().trim().max(120),
+    email: z.union([z.email(), z.literal('')]),
+    role: z.string().trim().max(160),
+    bio: z.string().trim().max(2_000),
+    updatedAt: z.string(),
+});
+export const updateUserProfileSchema = userProfileSchema.omit({ updatedAt: true });
 //# sourceMappingURL=index.js.map

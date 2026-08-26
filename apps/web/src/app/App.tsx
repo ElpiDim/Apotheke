@@ -7,6 +7,7 @@ import { IntegrationPdfPage } from '../features/integrations/IntegrationPdfPage'
 import { TasksPage } from '../features/tasks/TasksPage';
 import { CategoriesPage } from '../features/categories/CategoriesPage';
 import { SearchPage } from '../features/search/SearchPage';
+import { PasswordsPage } from '../features/vault/PasswordsPage';
 import { AppShell } from './AppShell';
 import { OverviewPage } from './OverviewPage';
 
@@ -23,6 +24,7 @@ export function App() {
           <Route path="/integrations" element={<IntegrationsPage />} />
           <Route path="/integrations/pdf/:entryId" element={<IntegrationPdfPage />} />
           <Route path="/tasks" element={<TasksPage />} />
+          <Route path="/passwords" element={<PasswordsPage />} />
           <Route path="/categories" element={<CategoriesPage />} />
           <Route path="/categories/:categoryId" element={<CategoriesPage />} />
           <Route path="/search" element={<SearchPage />} />

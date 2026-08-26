@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
-import type { Category, IntegrationSpace, Task } from '@apotheke/contracts';
+import type { Category, IntegrationSpace, Task, UserProfile } from '@apotheke/contracts';
 import {
   FileText,
   LayoutDashboard,
@@ -18,6 +18,11 @@ import {
   Pencil,
   Plus,
   Trash2,
+  LockKeyhole,
+  UserRound,
+  Mail,
+  Briefcase,
+  Save,
 } from 'lucide-react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { api, jsonRequest } from '../lib/api';
@@ -31,9 +36,10 @@ const navItems = [
   { to: '/images', label: 'Images', icon: ImageIcon, end: false },
   { to: '/notes', label: 'Notes', icon: StickyNote, end: false },
   { to: '/tasks', label: 'Tasks', icon: ListTodo, end: false },
+  { to: '/passwords', label: 'Passwords', icon: LockKeyhole, end: false },
 ] as const;
 
-function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose: () => void }) {
+function Sidebar({ mobileOpen, onClose, onProfile }: { mobileOpen: boolean; onClose: () => void; onProfile: () => void }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [categories, setCategories] = useState<Category[]>([]);
@@ -89,7 +95,7 @@ function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose: () => 
   return (
     <aside className={`fixed inset-y-0 left-0 z-30 flex w-60 flex-col border-r border-violet-700 bg-gradient-to-b from-violet-900 to-violet-950 text-violet-100 shadow-xl shadow-violet-950/10 transition-transform dark:border-violet-200 dark:from-[#f7f4ff] dark:to-[#ebe5fb] dark:text-violet-950 dark:shadow-black/20 sm:translate-x-0 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
       <div className="relative flex h-24 items-center justify-center border-b border-violet-700/70 px-3 dark:border-violet-200">
-        <img src="/peanut-logo.png" alt="Peanut logo" className="h-auto w-[145px] shrink-0 drop-shadow-[0_8px_12px_rgba(20,10,55,0.24)]" />
+        <button onClick={onProfile} aria-label="Open your profile" title="My profile" className="group rounded-2xl px-2 py-1 transition hover:-translate-y-0.5 hover:bg-violet-800/50 dark:hover:bg-white"><img src="/peanut-logo.png" alt="Peanut logo" className="h-auto w-[145px] shrink-0 drop-shadow-[0_8px_12px_rgba(20,10,55,0.24)] transition group-hover:scale-[1.02]" /></button>
         <button onClick={onClose} aria-label="Close navigation" className="absolute right-3 top-3 rounded-lg p-1.5 text-violet-300 hover:bg-violet-800 dark:text-violet-500 dark:hover:bg-violet-100 sm:hidden"><X size={17} /></button>
       </div>
 
@@ -231,6 +237,7 @@ function TaskNotifications() {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [dark, setDark] = useState(() => localStorage.getItem('apotheke-theme') === 'dark');
 
   useEffect(() => {
@@ -241,13 +248,44 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-[#fffaf3] dark:bg-[#171329]">
       {mobileOpen && <button aria-label="Close navigation" onClick={() => setMobileOpen(false)} className="fixed inset-0 z-20 bg-violet-950/50 sm:hidden" />}
-      <Sidebar mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
+      <Sidebar mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} onProfile={() => { setMobileOpen(false); setProfileOpen(true); }} />
       <Topbar onMenu={() => setMobileOpen(true)} dark={dark} onToggleTheme={() => setDark((value) => !value)} />
       <main className="pt-16 sm:ml-60">
         <div className="app-content mx-auto max-w-[1440px] p-4 sm:p-6 lg:p-8">{children}</div>
       </main>
       <PiniAssistant />
       <CommandPalette />
+      {profileOpen && <ProfileModal onClose={() => setProfileOpen(false)} />}
     </div>
   );
+}
+
+const emptyProfile: UserProfile = { name: '', email: '', role: '', bio: '', updatedAt: '' };
+
+function ProfileModal({ onClose }: { onClose: () => void }) {
+  const [profile, setProfile] = useState<UserProfile>(emptyProfile);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    void api<{ profile: UserProfile }>('/profile').then((result) => setProfile(result.profile)).catch((reason: Error) => setError(reason.message)).finally(() => setLoading(false));
+  }, []);
+
+  async function saveProfile(event: FormEvent) {
+    event.preventDefault(); setSaving(true); setSaved(false); setError('');
+    try {
+      const result = await api<{ profile: UserProfile }>('/profile', jsonRequest('PATCH', { name: profile.name, email: profile.email, role: profile.role, bio: profile.bio }));
+      setProfile(result.profile); setSaved(true);
+    } catch (reason) { setError((reason as Error).message); }
+    finally { setSaving(false); }
+  }
+
+  const initials = profile.name.trim().split(/\s+/u).slice(0, 2).map((part) => part[0]?.toLocaleUpperCase()).join('') || 'P';
+  return <div className="fixed inset-0 z-[90] flex items-center justify-center bg-violet-950/45 p-4 backdrop-blur-sm"><button onClick={onClose} aria-label="Close profile" className="absolute inset-0 cursor-default" /><section className="relative w-full max-w-xl overflow-hidden rounded-[28px] border border-violet-200 bg-[#fffdf9] shadow-2xl dark:border-violet-700 dark:bg-[#211b35]"><header className="relative overflow-hidden border-b border-violet-100 bg-gradient-to-r from-amber-50 via-orange-50 to-violet-100 px-6 py-5 dark:border-violet-800 dark:from-amber-950/30 dark:via-[#312039] dark:to-violet-950"><div className="absolute -right-6 -top-10 h-32 w-36 rounded-full bg-teal-200/70 dark:bg-teal-800/50" /><button onClick={onClose} aria-label="Close" className="absolute right-4 top-4 z-10 rounded-xl p-2 text-violet-400 hover:bg-white/70 dark:hover:bg-violet-800"><X size={17} /></button><div className="relative flex items-center gap-4"><div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[22px] bg-violet-700 font-serif text-xl font-bold text-white shadow-lg">{initials}</div><div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-coral-600">Peanut profile</p><h2 className="mt-1 font-serif text-2xl font-bold text-violet-950 dark:text-white">{profile.name || 'Your profile'}</h2><p className="mt-1 text-xs text-violet-500 dark:text-violet-300">Personal information stored on this device.</p></div></div></header>{loading ? <div className="flex min-h-72 items-center justify-center text-sm text-violet-400">Loading profile…</div> : <form onSubmit={saveProfile} className="space-y-4 p-6"><ProfileField icon={<UserRound size={15} />} label="Name" value={profile.name} onChange={(value) => setProfile((current) => ({ ...current, name: value }))} placeholder="Your name" autoFocus /><ProfileField icon={<Mail size={15} />} label="Email" type="email" value={profile.email} onChange={(value) => setProfile((current) => ({ ...current, email: value }))} placeholder="you@example.com" /><ProfileField icon={<Briefcase size={15} />} label="Role or title" value={profile.role} onChange={(value) => setProfile((current) => ({ ...current, role: value }))} placeholder="e.g. Developer, Student" /><label className="block"><span className="mb-1.5 block text-xs font-semibold text-violet-600 dark:text-violet-300">About me</span><textarea value={profile.bio} onChange={(event) => setProfile((current) => ({ ...current, bio: event.target.value }))} placeholder="A few details about you…" className="min-h-28 w-full resize-none rounded-xl border border-violet-200 bg-white px-3 py-2.5 text-sm text-violet-900 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 dark:border-violet-700 dark:bg-violet-950 dark:text-violet-100" /></label>{error && <p className="rounded-xl bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-950/40 dark:text-red-300">{error}</p>}{saved && <p className="rounded-xl bg-teal-50 px-3 py-2 text-xs font-semibold text-teal-700 dark:bg-teal-950/40 dark:text-teal-300">Profile saved.</p>}<div className="flex justify-end gap-2 pt-1"><button type="button" onClick={onClose} className="rounded-xl border border-violet-200 px-4 py-2.5 text-xs font-semibold text-violet-500 dark:border-violet-700 dark:text-violet-300">Close</button><button disabled={saving} className="flex items-center gap-2 rounded-xl bg-coral-500 px-4 py-2.5 text-xs font-bold text-white hover:bg-coral-600 disabled:opacity-50"><Save size={14} />{saving ? 'Saving…' : 'Save profile'}</button></div></form>}</section></div>;
+}
+
+function ProfileField({ icon, label, value, onChange, type = 'text', placeholder, autoFocus = false }: { icon: ReactNode; label: string; value: string; onChange: (value: string) => void; type?: string; placeholder?: string; autoFocus?: boolean }) {
+  return <label className="block"><span className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-violet-600 dark:text-violet-300">{icon}{label}</span><input type={type} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} autoFocus={autoFocus} className="h-11 w-full rounded-xl border border-violet-200 bg-white px-3 text-sm text-violet-900 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 dark:border-violet-700 dark:bg-violet-950 dark:text-violet-100" /></label>;
 }

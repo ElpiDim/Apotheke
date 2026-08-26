@@ -20,6 +20,7 @@ import {
 } from '../src/features/integrations/integrationRepository.js';
 import { answerQuestion, search } from '../src/features/search/searchService.js';
 import { createTask, deleteTask, listTasks, updateTask } from '../src/features/tasks/taskRepository.js';
+import { createVaultEntry, deleteVaultEntry, getVaultKey, listVaultEntries, lockVault, setupVault, unlockVault, updateVaultEntry, vaultConfigured } from '../src/features/vault/vaultService.js';
 
 describe('local knowledge persistence', () => {
   let directory: string;
@@ -157,5 +158,25 @@ describe('local knowledge persistence', () => {
 
     deleteTask(database, task.id);
     expect(listTasks(database)).toHaveLength(0);
+  });
+
+  it('encrypts password vault entries and requires an unlocked session', () => {
+    expect(vaultConfigured(database)).toBe(false);
+    const token = setupVault(database, 'a-strong-master-password');
+    const key = getVaultKey(token);
+    const entry = createVaultEntry(database, key, {
+      label: 'GitHub', username: 'elpi@example.com', password: 'super-secret-value', url: 'https://github.com', notes: 'Personal account',
+    });
+    expect(listVaultEntries(database, key)[0]?.password).toBe('super-secret-value');
+    const stored = database.prepare('SELECT payload_ciphertext AS ciphertext FROM vault_entries WHERE id = ?').get(entry.id) as { ciphertext: string };
+    expect(stored.ciphertext).not.toContain('super-secret-value');
+    expect(updateVaultEntry(database, key, entry.id, { password: 'new-secret-value' }).password).toBe('new-secret-value');
+    lockVault(token);
+    expect(() => getVaultKey(token)).toThrow();
+    expect(() => unlockVault(database, 'wrong-master-password')).toThrow();
+    const secondToken = unlockVault(database, 'a-strong-master-password');
+    deleteVaultEntry(database, entry.id);
+    expect(listVaultEntries(database, getVaultKey(secondToken))).toHaveLength(0);
+    lockVault(secondToken);
   });
 });

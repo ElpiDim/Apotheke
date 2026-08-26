@@ -116,6 +116,21 @@ select {
   background: linear-gradient(135deg, rgb(73 55 127 / 46%), rgb(75 40 89 / 32%));
 }
 
+.passwords-title-blob {
+  position: absolute;
+  right: -120px;
+  top: -70px;
+  width: 560px;
+  height: 300px;
+  border-radius: 46% 54% 63% 37% / 56% 38% 62% 44%;
+  background: linear-gradient(135deg, rgb(255 239 211 / 72%), rgb(247 221 245 / 54%), rgb(232 226 255 / 70%));
+  transform: rotate(-5deg);
+}
+
+.dark .passwords-title-blob {
+  background: linear-gradient(135deg, rgb(101 67 43 / 34%), rgb(75 40 89 / 32%), rgb(73 55 127 / 42%));
+}
+
 .integrations-title-blob {
   position: absolute;
   right: -70px;

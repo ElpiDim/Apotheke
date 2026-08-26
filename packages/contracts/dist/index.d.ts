@@ -208,6 +208,46 @@ export declare const updateTaskSchema: z.ZodObject<{
     dueAt: z.ZodOptional<z.ZodNullable<z.ZodISODateTime>>;
     completed: z.ZodOptional<z.ZodBoolean>;
 }, z.core.$strip>;
+export declare const vaultEntrySchema: z.ZodObject<{
+    id: z.ZodString;
+    label: z.ZodString;
+    username: z.ZodString;
+    password: z.ZodString;
+    url: z.ZodString;
+    notes: z.ZodString;
+    createdAt: z.ZodString;
+    updatedAt: z.ZodString;
+}, z.core.$strip>;
+export declare const createVaultEntrySchema: z.ZodObject<{
+    label: z.ZodString;
+    username: z.ZodDefault<z.ZodString>;
+    password: z.ZodString;
+    url: z.ZodDefault<z.ZodString>;
+    notes: z.ZodDefault<z.ZodString>;
+}, z.core.$strip>;
+export declare const updateVaultEntrySchema: z.ZodObject<{
+    label: z.ZodOptional<z.ZodString>;
+    username: z.ZodOptional<z.ZodDefault<z.ZodString>>;
+    password: z.ZodOptional<z.ZodString>;
+    url: z.ZodOptional<z.ZodDefault<z.ZodString>>;
+    notes: z.ZodOptional<z.ZodDefault<z.ZodString>>;
+}, z.core.$strip>;
+export declare const vaultPasswordSchema: z.ZodObject<{
+    password: z.ZodString;
+}, z.core.$strip>;
+export declare const userProfileSchema: z.ZodObject<{
+    name: z.ZodString;
+    email: z.ZodUnion<readonly [z.ZodEmail, z.ZodLiteral<"">]>;
+    role: z.ZodString;
+    bio: z.ZodString;
+    updatedAt: z.ZodString;
+}, z.core.$strip>;
+export declare const updateUserProfileSchema: z.ZodObject<{
+    name: z.ZodString;
+    email: z.ZodUnion<readonly [z.ZodEmail, z.ZodLiteral<"">]>;
+    role: z.ZodString;
+    bio: z.ZodString;
+}, z.core.$strip>;
 export type Tag = z.infer<typeof tagSchema>;
 export type Category = z.infer<typeof categorySchema>;
 export type DocumentRecord = z.infer<typeof documentSchema>;
@@ -231,4 +271,9 @@ export type UpdateIntegrationEntryInput = z.infer<typeof updateIntegrationEntryS
 export type Task = z.infer<typeof taskSchema>;
 export type CreateTaskInput = z.infer<typeof createTaskSchema>;
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
+export type VaultEntry = z.infer<typeof vaultEntrySchema>;
+export type CreateVaultEntryInput = z.infer<typeof createVaultEntrySchema>;
+export type UpdateVaultEntryInput = z.infer<typeof updateVaultEntrySchema>;
+export type UserProfile = z.infer<typeof userProfileSchema>;
+export type UpdateUserProfileInput = z.infer<typeof updateUserProfileSchema>;
 //# sourceMappingURL=index.d.ts.map

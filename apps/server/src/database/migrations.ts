@@ -181,4 +181,45 @@ export const migrations: readonly Migration[] = [
         ON integration_folders(space_id, parent_id, name);
     `,
   },
+  {
+    id: 8,
+    name: 'encrypted_password_vault',
+    sql: `
+      CREATE TABLE vault_settings (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        salt TEXT NOT NULL,
+        verifier_iv TEXT NOT NULL,
+        verifier_ciphertext TEXT NOT NULL,
+        verifier_tag TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+
+      CREATE TABLE vault_entries (
+        id TEXT PRIMARY KEY,
+        label TEXT NOT NULL,
+        payload_iv TEXT NOT NULL,
+        payload_ciphertext TEXT NOT NULL,
+        payload_tag TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX vault_entries_updated_idx ON vault_entries(updated_at DESC);
+    `,
+  },
+  {
+    id: 9,
+    name: 'local_user_profile',
+    sql: `
+      CREATE TABLE user_profile (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        name TEXT NOT NULL DEFAULT '',
+        email TEXT NOT NULL DEFAULT '',
+        role TEXT NOT NULL DEFAULT '',
+        bio TEXT NOT NULL DEFAULT '',
+        updated_at TEXT NOT NULL
+      );
+      INSERT INTO user_profile (id, name, email, role, bio, updated_at)
+      VALUES (1, '', '', '', '', datetime('now'));
+    `,
+  },
 ];
