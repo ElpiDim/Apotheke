@@ -65,7 +65,7 @@ export function search(database: ApothekeDatabase, rawQuery: string): SearchResu
      GROUP BY n.id`,
   );
   const integrationDetails = database.prepare(
-    `SELECT f.name AS category,
+    `SELECT s.name || ' / ' || f.name AS category,
             CASE WHEN e.original_filename IS NOT NULL THEN e.original_filename ELSE e.url END AS tags,
             NULL AS version,
             NULL AS mimeType,
@@ -73,6 +73,7 @@ export function search(database: ApothekeDatabase, rawQuery: string): SearchResu
             e.folder_id AS integrationFolderId
      FROM integration_entries e
      JOIN integration_folders f ON f.id = e.folder_id
+     JOIN integration_spaces s ON s.id = f.space_id
      WHERE e.id = ?`,
   );
 

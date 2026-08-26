@@ -4,6 +4,9 @@ import type {
   CreateIntegrationFolderInput,
   IntegrationEntry,
   IntegrationFolder,
+  IntegrationSpace,
+  CreateIntegrationSpaceInput,
+  UpdateIntegrationSpaceInput,
   UpdateIntegrationEntryInput,
   UpdateIntegrationFolderInput,
 } from '@apotheke/contracts';
@@ -13,8 +16,16 @@ import { reindexIntegrationEntry, removeFromIndex } from '../search/indexer.js';
 
 interface FolderRow {
   id: string;
+  spaceId: string;
   name: string;
   parentId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface SpaceRow {
+  id: string;
+  name: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -35,10 +46,68 @@ interface EntryRow {
 
 export function listIntegrationFolders(database: ApothekeDatabase): IntegrationFolder[] {
   return database.prepare(`
-    SELECT id, name, parent_id AS parentId, created_at AS createdAt, updated_at AS updatedAt
+    SELECT id, space_id AS spaceId, name, parent_id AS parentId, created_at AS createdAt, updated_at AS updatedAt
     FROM integration_folders
     ORDER BY name COLLATE NOCASE
   `).all() as FolderRow[];
+}
+
+export function listIntegrationSpaces(database: ApothekeDatabase): IntegrationSpace[] {
+  return database.prepare(`
+    SELECT id, name, created_at AS createdAt, updated_at AS updatedAt
+    FROM integration_spaces
+    ORDER BY created_at, name COLLATE NOCASE
+  `).all() as SpaceRow[];
+}
+
+function requireSpace(database: ApothekeDatabase, id: string): IntegrationSpace {
+  const space = listIntegrationSpaces(database).find((item) => item.id === id);
+  if (!space) throw new AppError(404, 'Workspace section not found.', 'INTEGRATION_SPACE_NOT_FOUND');
+  return space;
+}
+
+export function createIntegrationSpace(database: ApothekeDatabase, input: CreateIntegrationSpaceInput): IntegrationSpace {
+  const id = randomUUID();
+  const now = new Date().toISOString();
+  try {
+    database.prepare('INSERT INTO integration_spaces (id, name, created_at, updated_at) VALUES (?, ?, ?, ?)')
+      .run(id, input.name, now, now);
+  } catch {
+    throw new AppError(409, 'A section with this name already exists.', 'INTEGRATION_SPACE_EXISTS');
+  }
+  return { id, name: input.name, createdAt: now, updatedAt: now };
+}
+
+export function updateIntegrationSpace(database: ApothekeDatabase, id: string, input: UpdateIntegrationSpaceInput): IntegrationSpace {
+  const current = requireSpace(database, id);
+  const now = new Date().toISOString();
+  try {
+    database.prepare('UPDATE integration_spaces SET name = ?, updated_at = ? WHERE id = ?')
+      .run(input.name ?? current.name, now, id);
+  } catch {
+    throw new AppError(409, 'A section with this name already exists.', 'INTEGRATION_SPACE_EXISTS');
+  }
+  const entryIds = database.prepare(`
+    SELECT e.id FROM integration_entries e
+    JOIN integration_folders f ON f.id = e.folder_id
+    WHERE f.space_id = ?
+  `).all(id) as { id: string }[];
+  for (const entry of entryIds) reindexIntegrationEntry(database, entry.id);
+  return { ...current, name: input.name ?? current.name, updatedAt: now };
+}
+
+export function deleteIntegrationSpace(database: ApothekeDatabase, id: string): void {
+  requireSpace(database, id);
+  database.transaction(() => {
+    const entryIds = database.prepare(`
+      SELECT e.id FROM integration_entries e
+      JOIN integration_folders f ON f.id = e.folder_id
+      WHERE f.space_id = ?
+    `).all(id) as { id: string }[];
+    for (const entry of entryIds) removeFromIndex(database, 'integration', entry.id);
+    database.prepare('DELETE FROM integration_folders WHERE space_id = ?').run(id);
+    database.prepare('DELETE FROM integration_spaces WHERE id = ?').run(id);
+  })();
 }
 
 export function listIntegrationEntries(database: ApothekeDatabase): IntegrationEntry[] {
@@ -78,14 +147,19 @@ export function createIntegrationFolder(
   database: ApothekeDatabase,
   input: CreateIntegrationFolderInput,
 ): IntegrationFolder {
-  if (input.parentId) requireFolder(database, input.parentId);
+  requireSpace(database, input.spaceId);
+  if (input.parentId) {
+    requireFolder(database, input.parentId);
+    const parent = listIntegrationFolders(database).find((folder) => folder.id === input.parentId)!;
+    if (parent.spaceId !== input.spaceId) throw new AppError(400, 'A folder must stay inside its section.', 'INVALID_FOLDER_SPACE');
+  }
   const id = randomUUID();
   const now = new Date().toISOString();
   database.prepare(`
-    INSERT INTO integration_folders (id, name, parent_id, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?)
-  `).run(id, input.name, input.parentId, now, now);
-  return { id, name: input.name, parentId: input.parentId, createdAt: now, updatedAt: now };
+    INSERT INTO integration_folders (id, space_id, name, parent_id, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(id, input.spaceId, input.name, input.parentId, now, now);
+  return { id, spaceId: input.spaceId, name: input.name, parentId: input.parentId, createdAt: now, updatedAt: now };
 }
 
 export function updateIntegrationFolder(
@@ -99,6 +173,8 @@ export function updateIntegrationFolder(
   if (nextParentId === id) throw new AppError(400, 'A folder cannot contain itself.', 'INVALID_FOLDER_PARENT');
   if (nextParentId) {
     requireFolder(database, nextParentId);
+    const parent = listIntegrationFolders(database).find((folder) => folder.id === nextParentId)!;
+    if (parent.spaceId !== current.spaceId) throw new AppError(400, 'A folder must stay inside its section.', 'INVALID_FOLDER_SPACE');
     const descendants = database.prepare(`
       WITH RECURSIVE descendants(id) AS (
         SELECT id FROM integration_folders WHERE parent_id = ?
@@ -232,6 +308,16 @@ export function listStoredFilesInFolderTree(database: ApothekeDatabase, folderId
     FROM integration_entries
     WHERE folder_id IN (SELECT id FROM folder_tree) AND stored_filename IS NOT NULL
   `).all(folderId) as { storedFilename: string }[];
+  return rows.map((row) => row.storedFilename);
+}
+
+export function listStoredFilesInSpace(database: ApothekeDatabase, spaceId: string): string[] {
+  const rows = database.prepare(`
+    SELECT e.stored_filename AS storedFilename
+    FROM integration_entries e
+    JOIN integration_folders f ON f.id = e.folder_id
+    WHERE f.space_id = ? AND e.stored_filename IS NOT NULL
+  `).all(spaceId) as { storedFilename: string }[];
   return rows.map((row) => row.storedFilename);
 }
 

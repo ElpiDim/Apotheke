@@ -1,8 +1,10 @@
 import {
   createIntegrationEntrySchema,
   createIntegrationFolderSchema,
+  createIntegrationSpaceSchema,
   updateIntegrationEntrySchema,
   updateIntegrationFolderSchema,
+  updateIntegrationSpaceSchema,
 } from '@apotheke/contracts';
 import { Router } from 'express';
 import fs from 'node:fs/promises';
@@ -15,14 +17,19 @@ import {
   createIntegrationEntry,
   createIntegrationPdf,
   createIntegrationFolder,
+  createIntegrationSpace,
   deleteIntegrationEntry,
   deleteIntegrationFolder,
+  deleteIntegrationSpace,
   listIntegrationEntries,
   listIntegrationFolders,
+  listIntegrationSpaces,
   getIntegrationStoredFile,
   listStoredFilesInFolderTree,
+  listStoredFilesInSpace,
   updateIntegrationEntry,
   updateIntegrationFolder,
+  updateIntegrationSpace,
 } from './integrationRepository.js';
 import { integrationPdfUpload } from './upload.js';
 
@@ -30,9 +37,31 @@ export const integrationsRouter = Router();
 
 integrationsRouter.get('/', (_request, response) => {
   response.json({
+    spaces: listIntegrationSpaces(database),
     folders: listIntegrationFolders(database),
     entries: listIntegrationEntries(database),
   });
+});
+
+integrationsRouter.get('/spaces', (_request, response) => {
+  response.json({ spaces: listIntegrationSpaces(database) });
+});
+
+integrationsRouter.post('/spaces', (request, response) => {
+  const input = createIntegrationSpaceSchema.parse(request.body);
+  response.status(201).json({ space: createIntegrationSpace(database, input) });
+});
+
+integrationsRouter.patch('/spaces/:id', (request, response) => {
+  const input = updateIntegrationSpaceSchema.parse(request.body);
+  response.json({ space: updateIntegrationSpace(database, request.params.id, input) });
+});
+
+integrationsRouter.delete('/spaces/:id', async (request, response) => {
+  const storedFiles = listStoredFilesInSpace(database, request.params.id);
+  deleteIntegrationSpace(database, request.params.id);
+  await Promise.all(storedFiles.map((filename) => fs.rm(path.join(config.filesDir, filename), { force: true })));
+  response.status(204).end();
 });
 
 integrationsRouter.post('/folders', (request, response) => {

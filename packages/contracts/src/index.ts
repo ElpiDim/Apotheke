@@ -94,8 +94,25 @@ export const extractiveAnswerResponseSchema = z.object({
   sources: z.array(extractiveAnswerSourceSchema),
 });
 
+export const integrationSpaceSchema = z.object({
+  id: entityIdSchema,
+  name: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+export const createIntegrationSpaceSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+});
+
+export const updateIntegrationSpaceSchema = createIntegrationSpaceSchema.partial().refine(
+  (value) => Object.keys(value).length > 0,
+  'At least one section field is required.',
+);
+
 export const integrationFolderSchema = z.object({
   id: entityIdSchema,
+  spaceId: entityIdSchema,
   name: z.string(),
   parentId: entityIdSchema.nullable(),
   createdAt: z.string(),
@@ -119,6 +136,7 @@ export const integrationEntrySchema = z.object({
 
 export const createIntegrationFolderSchema = z.object({
   name: z.string().trim().min(1).max(120),
+  spaceId: entityIdSchema,
   parentId: entityIdSchema.nullable().default(null),
 });
 
@@ -177,6 +195,9 @@ export type SearchResult = z.infer<typeof searchResultSchema>;
 export type SearchResponse = z.infer<typeof searchResponseSchema>;
 export type ExtractiveAnswerSource = z.infer<typeof extractiveAnswerSourceSchema>;
 export type ExtractiveAnswerResponse = z.infer<typeof extractiveAnswerResponseSchema>;
+export type IntegrationSpace = z.infer<typeof integrationSpaceSchema>;
+export type CreateIntegrationSpaceInput = z.infer<typeof createIntegrationSpaceSchema>;
+export type UpdateIntegrationSpaceInput = z.infer<typeof updateIntegrationSpaceSchema>;
 export type IntegrationFolder = z.infer<typeof integrationFolderSchema>;
 export type IntegrationEntry = z.infer<typeof integrationEntrySchema>;
 export type CreateIntegrationFolderInput = z.infer<typeof createIntegrationFolderSchema>;

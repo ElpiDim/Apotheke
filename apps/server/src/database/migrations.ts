@@ -160,4 +160,25 @@ export const migrations: readonly Migration[] = [
         WHERE content_hash IS NOT NULL;
     `,
   },
+  {
+    id: 7,
+    name: 'custom_workspace_sections',
+    sql: `
+      CREATE TABLE integration_spaces (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL COLLATE NOCASE UNIQUE,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+
+      INSERT INTO integration_spaces (id, name, created_at, updated_at)
+      VALUES ('00000000-0000-4000-8000-000000000001', 'Integrations', datetime('now'), datetime('now'));
+
+      ALTER TABLE integration_folders
+        ADD COLUMN space_id TEXT NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001';
+
+      CREATE INDEX integration_folders_space_idx
+        ON integration_folders(space_id, parent_id, name);
+    `,
+  },
 ];

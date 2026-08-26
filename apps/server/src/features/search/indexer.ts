@@ -85,12 +85,18 @@ export function reindexIntegrationEntry(database: ApothekeDatabase, entryId: str
 
   const folderNames: string[] = [];
   let folderId: string | null = entry.folderId;
-  const folderStatement = database.prepare('SELECT name, parent_id AS parentId FROM integration_folders WHERE id = ?');
+  let spaceId: string | null = null;
+  const folderStatement = database.prepare('SELECT name, parent_id AS parentId, space_id AS spaceId FROM integration_folders WHERE id = ?');
   while (folderId) {
-    const folder = folderStatement.get(folderId) as { name: string; parentId: string | null } | undefined;
+    const folder = folderStatement.get(folderId) as { name: string; parentId: string | null; spaceId: string } | undefined;
     if (!folder) break;
+    spaceId = folder.spaceId;
     folderNames.unshift(folder.name);
     folderId = folder.parentId;
+  }
+  if (spaceId) {
+    const space = database.prepare('SELECT name FROM integration_spaces WHERE id = ?').get(spaceId) as { name: string } | undefined;
+    if (space) folderNames.unshift(space.name);
   }
 
   replaceIndexRow(database, 'integration', entryId, {

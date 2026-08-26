@@ -133,8 +133,21 @@ export declare const extractiveAnswerResponseSchema: z.ZodObject<{
         integrationFolderId: z.ZodNullable<z.ZodString>;
     }, z.core.$strip>>;
 }, z.core.$strip>;
+export declare const integrationSpaceSchema: z.ZodObject<{
+    id: z.ZodString;
+    name: z.ZodString;
+    createdAt: z.ZodString;
+    updatedAt: z.ZodString;
+}, z.core.$strip>;
+export declare const createIntegrationSpaceSchema: z.ZodObject<{
+    name: z.ZodString;
+}, z.core.$strip>;
+export declare const updateIntegrationSpaceSchema: z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+}, z.core.$strip>;
 export declare const integrationFolderSchema: z.ZodObject<{
     id: z.ZodString;
+    spaceId: z.ZodString;
     name: z.ZodString;
     parentId: z.ZodNullable<z.ZodString>;
     createdAt: z.ZodString;
@@ -156,6 +169,7 @@ export declare const integrationEntrySchema: z.ZodObject<{
 }, z.core.$strip>;
 export declare const createIntegrationFolderSchema: z.ZodObject<{
     name: z.ZodString;
+    spaceId: z.ZodString;
     parentId: z.ZodDefault<z.ZodNullable<z.ZodString>>;
 }, z.core.$strip>;
 export declare const updateIntegrationFolderSchema: z.ZodObject<{
@@ -205,6 +219,9 @@ export type SearchResult = z.infer<typeof searchResultSchema>;
 export type SearchResponse = z.infer<typeof searchResponseSchema>;
 export type ExtractiveAnswerSource = z.infer<typeof extractiveAnswerSourceSchema>;
 export type ExtractiveAnswerResponse = z.infer<typeof extractiveAnswerResponseSchema>;
+export type IntegrationSpace = z.infer<typeof integrationSpaceSchema>;
+export type CreateIntegrationSpaceInput = z.infer<typeof createIntegrationSpaceSchema>;
+export type UpdateIntegrationSpaceInput = z.infer<typeof updateIntegrationSpaceSchema>;
 export type IntegrationFolder = z.infer<typeof integrationFolderSchema>;
 export type IntegrationEntry = z.infer<typeof integrationEntrySchema>;
 export type CreateIntegrationFolderInput = z.infer<typeof createIntegrationFolderSchema>;

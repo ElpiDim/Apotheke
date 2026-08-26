@@ -8,11 +8,15 @@ import { createNote, deleteNote } from '../src/features/notes/noteRepository.js'
 import {
   createIntegrationEntry,
   createIntegrationFolder,
+  createIntegrationSpace,
+  deleteIntegrationSpace,
   deleteIntegrationFolder,
   listIntegrationEntries,
   listIntegrationFolders,
+  listIntegrationSpaces,
   updateIntegrationEntry,
   updateIntegrationFolder,
+  updateIntegrationSpace,
 } from '../src/features/integrations/integrationRepository.js';
 import { answerQuestion, search } from '../src/features/search/searchService.js';
 import { createTask, deleteTask, listTasks, updateTask } from '../src/features/tasks/taskRepository.js';
@@ -93,8 +97,9 @@ describe('local knowledge persistence', () => {
   });
 
   it('stores nested integration folders and cascades their entries', () => {
-    const parent = createIntegrationFolder(database, { name: 'Platforms', parentId: null });
-    const child = createIntegrationFolder(database, { name: 'Payments', parentId: parent.id });
+    const defaultSpace = listIntegrationSpaces(database)[0]!;
+    const parent = createIntegrationFolder(database, { name: 'Platforms', spaceId: defaultSpace.id, parentId: null });
+    const child = createIntegrationFolder(database, { name: 'Payments', spaceId: defaultSpace.id, parentId: parent.id });
     const entry = createIntegrationEntry(database, {
       folderId: child.id,
       title: 'Stripe dashboard',
@@ -121,6 +126,16 @@ describe('local knowledge persistence', () => {
     expect(listIntegrationFolders(database)).toHaveLength(0);
     expect(listIntegrationEntries(database)).toHaveLength(0);
     expect(search(database, 'Stripe')).toHaveLength(0);
+  });
+
+  it('keeps custom folder sections independent and renameable', () => {
+    const projects = createIntegrationSpace(database, { name: 'Projects' });
+    const folder = createIntegrationFolder(database, { name: 'Peanut website', spaceId: projects.id, parentId: null });
+    expect(folder.spaceId).toBe(projects.id);
+    expect(updateIntegrationSpace(database, projects.id, { name: 'Client projects' }).name).toBe('Client projects');
+    expect(listIntegrationSpaces(database).some((space) => space.name === 'Client projects')).toBe(true);
+    deleteIntegrationSpace(database, projects.id);
+    expect(listIntegrationFolders(database).some((item) => item.id === folder.id)).toBe(false);
   });
 
   it('stores task deadlines and completion state', () => {

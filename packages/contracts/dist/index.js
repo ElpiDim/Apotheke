@@ -78,8 +78,19 @@ export const extractiveAnswerResponseSchema = z.object({
     answer: z.string().nullable(),
     sources: z.array(extractiveAnswerSourceSchema),
 });
+export const integrationSpaceSchema = z.object({
+    id: entityIdSchema,
+    name: z.string(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+});
+export const createIntegrationSpaceSchema = z.object({
+    name: z.string().trim().min(1).max(80),
+});
+export const updateIntegrationSpaceSchema = createIntegrationSpaceSchema.partial().refine((value) => Object.keys(value).length > 0, 'At least one section field is required.');
 export const integrationFolderSchema = z.object({
     id: entityIdSchema,
+    spaceId: entityIdSchema,
     name: z.string(),
     parentId: entityIdSchema.nullable(),
     createdAt: z.string(),
@@ -101,6 +112,7 @@ export const integrationEntrySchema = z.object({
 });
 export const createIntegrationFolderSchema = z.object({
     name: z.string().trim().min(1).max(120),
+    spaceId: entityIdSchema,
     parentId: entityIdSchema.nullable().default(null),
 });
 export const updateIntegrationFolderSchema = z.object({

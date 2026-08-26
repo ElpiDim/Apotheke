@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState, type DragEvent, type FormEvent, type InputHTMLAttributes, type ReactNode } from 'react';
-import type { IntegrationEntry, IntegrationFolder } from '@apotheke/contracts';
+import type { IntegrationEntry, IntegrationFolder, IntegrationSpace } from '@apotheke/contracts';
 import { ChevronDown, ChevronRight, ExternalLink, FileText, Folder, FolderOpen, FolderPlus, HardDrive, Link2, Pencil, Plus, Sparkles, Trash2, UploadCloud, X } from 'lucide-react';
 import { EmptyState } from '../../components/EmptyState';
 import { api, jsonRequest } from '../../lib/api';
 import { Link, useSearchParams } from 'react-router-dom';
-import { announceWorkspaceChange } from '../../lib/workspaceEvents';
+import { announceWorkspaceChange, onWorkspaceChange } from '../../lib/workspaceEvents';
 
 interface IntegrationWorkspace {
+  spaces: IntegrationSpace[];
   folders: IntegrationFolder[];
   entries: IntegrationEntry[];
 }
@@ -36,7 +37,8 @@ function flattenVisibleFolders(folders: IntegrationFolder[], expanded: ReadonlyS
 export function IntegrationsPage() {
   const [params] = useSearchParams();
   const requestedFolderId = params.get('folder');
-  const [workspace, setWorkspace] = useState<IntegrationWorkspace>({ folders: [], entries: [] });
+  const requestedSpaceId = params.get('space');
+  const [workspace, setWorkspace] = useState<IntegrationWorkspace>({ spaces: [], folders: [], entries: [] });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [folderOpen, setFolderOpen] = useState(false);
   const [entryOpen, setEntryOpen] = useState(false);
@@ -50,32 +52,47 @@ export function IntegrationsPage() {
   async function load() {
     const result = await api<IntegrationWorkspace>('/integrations');
     setWorkspace(result);
+    const requestedFolder = result.folders.find((folder) => folder.id === requestedFolderId);
+    const resolvedSpaceId = result.spaces.some((space) => space.id === requestedSpaceId)
+      ? requestedSpaceId
+      : requestedFolder?.spaceId ?? result.spaces[0]?.id ?? null;
+    const availableFolders = result.folders.filter((folder) => folder.spaceId === resolvedSpaceId);
     setSelectedId((current) => {
-      if (requestedFolderId && result.folders.some((folder) => folder.id === requestedFolderId)) return requestedFolderId;
-      return current && result.folders.some((folder) => folder.id === current)
+      if (requestedFolder && requestedFolder.spaceId === resolvedSpaceId) return requestedFolder.id;
+      return current && availableFolders.some((folder) => folder.id === current)
         ? current
-        : result.folders[0]?.id ?? null;
+        : availableFolders[0]?.id ?? null;
     });
   }
 
   useEffect(() => {
     void load().catch((reason: Error) => setError(reason.message));
-  }, []);
+    const unsubscribe = onWorkspaceChange((resources) => {
+      if (resources.includes('integrations')) void load().catch((reason: Error) => setError(reason.message));
+    });
+    return unsubscribe;
+  }, [requestedFolderId, requestedSpaceId]);
 
-  const folderOptions = useMemo(() => flattenFolders(workspace.folders), [workspace.folders]);
-  const visibleFolderOptions = useMemo(() => flattenVisibleFolders(workspace.folders, expandedFolders), [workspace.folders, expandedFolders]);
-  const selectedFolder = workspace.folders.find((folder) => folder.id === selectedId) ?? null;
+  const requestedFolder = workspace.folders.find((folder) => folder.id === requestedFolderId);
+  const activeSpaceId = workspace.spaces.some((space) => space.id === requestedSpaceId)
+    ? requestedSpaceId
+    : requestedFolder?.spaceId ?? workspace.spaces[0]?.id ?? null;
+  const selectedSpace = workspace.spaces.find((space) => space.id === activeSpaceId) ?? null;
+  const spaceFolders = useMemo(() => workspace.folders.filter((folder) => folder.spaceId === activeSpaceId), [activeSpaceId, workspace.folders]);
+  const folderOptions = useMemo(() => flattenFolders(spaceFolders), [spaceFolders]);
+  const visibleFolderOptions = useMemo(() => flattenVisibleFolders(spaceFolders, expandedFolders), [spaceFolders, expandedFolders]);
+  const selectedFolder = spaceFolders.find((folder) => folder.id === selectedId) ?? null;
   const selectedEntries = workspace.entries.filter((entry) => entry.folderId === selectedId);
-  const childFolders = workspace.folders.filter((folder) => folder.parentId === selectedId);
+  const childFolders = spaceFolders.filter((folder) => folder.parentId === selectedId);
   const selectedPath = useMemo(() => {
     const path: IntegrationFolder[] = [];
     let current = selectedFolder;
     while (current) {
       path.unshift(current);
-      current = workspace.folders.find((folder) => folder.id === current?.parentId) ?? null;
+      current = spaceFolders.find((folder) => folder.id === current?.parentId) ?? null;
     }
     return path;
-  }, [selectedFolder, workspace.folders]);
+  }, [selectedFolder, spaceFolders]);
 
   useEffect(() => {
     if (selectedPath.length < 2) return;
@@ -104,6 +121,7 @@ export function IntegrationsPage() {
     try {
       const result = await api<{ folder: IntegrationFolder }>(editingFolder ? `/integrations/folders/${editingFolder.id}` : '/integrations/folders', jsonRequest(editingFolder ? 'PATCH' : 'POST', {
         name,
+        ...(!editingFolder && activeSpaceId ? { spaceId: activeSpaceId } : {}),
         parentId: form.get('parentId') || null,
       }));
       await load();
@@ -219,7 +237,7 @@ export function IntegrationsPage() {
         <div className="absolute right-[4%] top-14 hidden text-violet-500 sm:block dark:text-violet-300" aria-hidden="true"><Sparkles size={28} /></div>
         <div className="relative z-10 max-w-xl">
           <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-coral-500">Connected workspace</p>
-          <h1 className="mt-1 font-serif text-4xl font-bold tracking-tight text-violet-950 sm:text-5xl dark:text-violet-50">Integrations</h1>
+          <h1 className="mt-1 font-serif text-4xl font-bold tracking-tight text-violet-950 sm:text-5xl dark:text-violet-50">{selectedSpace?.name ?? 'Workspace'}</h1>
           <p className="mt-2 max-w-lg text-sm leading-6 text-violet-600 dark:text-violet-200">Keep useful tools, links, notes and PDFs organized in your own familiar folder structure.</p>
           <button onClick={newFolder} className="mt-5 flex items-center gap-2 rounded-2xl bg-coral-500 px-5 py-3 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(255,128,102,0.22)] transition hover:-translate-y-0.5 hover:bg-coral-600">
             <FolderPlus size={17} /> New folder
@@ -229,10 +247,10 @@ export function IntegrationsPage() {
 
       {error && <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
-      {workspace.folders.length === 0 ? (
+      {spaceFolders.length === 0 ? (
         <EmptyState
           icon={FolderPlus}
-          title="Create your first integration folder"
+          title={`Create your first ${selectedSpace?.name ?? 'workspace'} folder`}
           description="Use folders for services, projects, environments or any structure that makes sense to you."
           action={<button onClick={newFolder} className="font-semibold text-violet-600 hover:text-violet-700">Create a folder</button>}
         />
@@ -243,6 +261,7 @@ export function IntegrationsPage() {
             <HardDrive size={17} className="shrink-0 text-violet-400" />
             <div className="flex min-w-0 flex-1 items-center overflow-x-auto rounded-xl border border-violet-100 bg-white px-3 py-2 text-xs shadow-inner dark:border-violet-800 dark:bg-[#28213e]">
               <span className="shrink-0 font-semibold text-violet-500">Peanut</span>
+              {selectedSpace && <span className="flex shrink-0 items-center"><ChevronRight size={14} className="mx-1 text-violet-300" /><span className="font-semibold text-violet-600 dark:text-violet-200">{selectedSpace.name}</span></span>}
               {selectedPath.map((folder) => (
                 <span key={folder.id} className="flex shrink-0 items-center">
                   <ChevronRight size={14} className="mx-1 text-violet-300" />
@@ -257,7 +276,7 @@ export function IntegrationsPage() {
           <aside className="max-h-64 overflow-auto border-b border-violet-100 bg-violet-50/60 p-3 dark:border-violet-800 dark:bg-violet-950/50 sm:max-h-none sm:border-b-0 sm:border-r">
             <div className="mb-2 flex items-center gap-2 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-400"><FolderOpen size={14} /> Folders</div>
             {visibleFolderOptions.map((folder) => {
-              const hasChildren = workspace.folders.some((candidate) => candidate.parentId === folder.id);
+              const hasChildren = spaceFolders.some((candidate) => candidate.parentId === folder.id);
               const expanded = expandedFolders.has(folder.id);
               return (
                 <div

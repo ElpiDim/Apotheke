@@ -19,7 +19,7 @@ export function DocumentsPage({ initialFilter = 'all' }: { initialFilter?: FileF
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [importOpen, setImportOpen] = useState(false);
-  const [droppedFile, setDroppedFile] = useState<File | null>(null);
+  const [droppedFiles, setDroppedFiles] = useState<File[]>([]);
   const [dragActive, setDragActive] = useState(false);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<FileFilter>(initialFilter);
@@ -52,16 +52,19 @@ export function DocumentsPage({ initialFilter = 'all' }: { initialFilter?: FileF
     const needle = query.trim().toLocaleLowerCase();
     const values = documents.filter((document) => {
       const extension = extensionOf(document);
-      const matchesType = filter === 'all'
-        || filter === 'text' && extension === 'txt'
-        || filter === 'markdown' && ['md', 'markdown'].includes(extension)
-        || filter === 'image' && ['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif'].includes(extension)
-        || extension === filter;
+      const isImage = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif'].includes(extension);
+      const matchesType = imagesPage
+        ? isImage
+        : filter === 'all'
+          ? !isImage
+          : filter === 'text' && extension === 'txt'
+            || filter === 'markdown' && ['md', 'markdown'].includes(extension)
+            || extension === filter;
       const haystack = [document.title, document.currentVersion.originalFilename, document.category?.name, ...document.tags.map((tag) => tag.name)].filter(Boolean).join(' ').toLocaleLowerCase();
       return matchesType && (!needle || haystack.includes(needle));
     });
     return values.sort((a, b) => sort === 'name' ? a.title.localeCompare(b.title) : b.updatedAt.localeCompare(a.updatedAt));
-  }, [documents, filter, query, sort]);
+  }, [documents, filter, imagesPage, query, sort]);
 
   useEffect(() => { setPage(1); }, [filter, query, sort]);
   const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
@@ -77,13 +80,13 @@ export function DocumentsPage({ initialFilter = 'all' }: { initialFilter?: FileF
   function drop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
     setDragActive(false);
-    const file = event.dataTransfer.files[0];
-    if (!file) return;
-    setDroppedFile(file);
+    const files = Array.from(event.dataTransfer.files);
+    if (files.length === 0) return;
+    setDroppedFiles(files);
     setImportOpen(true);
   }
 
-  function closeImport() { setImportOpen(false); setDroppedFile(null); }
+  function closeImport() { setImportOpen(false); setDroppedFiles([]); void load(); }
 
   return (
     <div onDragEnter={dragOver} onDragOver={dragOver} onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragActive(false); }} onDrop={drop}>
@@ -106,8 +109,8 @@ export function DocumentsPage({ initialFilter = 'all' }: { initialFilter?: FileF
         <>
           <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
             <div className="flex flex-wrap gap-2">
-              {([
-                ['all', 'All'], ['docx', 'Documents'], ['pdf', 'PDFs'], ['image', 'Images'], ['text', 'Text'], ['markdown', 'Markdown'],
+              {imagesPage ? <span className="rounded-xl border border-violet-600 bg-violet-600 px-3 py-2 text-xs font-semibold text-white shadow-sm">All images</span> : ([
+                ['all', 'All'], ['docx', 'Documents'], ['pdf', 'PDFs'], ['text', 'Text'], ['markdown', 'Markdown'],
               ] as [FileFilter, string][]).map(([value, label]) => <button key={value} onClick={() => setFilter(value)} className={`rounded-xl border px-3 py-2 text-xs font-semibold ${filter === value ? 'border-violet-600 bg-violet-600 text-white shadow-sm' : 'border-violet-100 bg-white text-violet-500 hover:border-violet-200 hover:text-violet-700 dark:border-violet-700 dark:bg-[#211b35] dark:text-violet-300'}`}><span>{label}</span></button>)}
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
@@ -129,7 +132,7 @@ export function DocumentsPage({ initialFilter = 'all' }: { initialFilter?: FileF
         </>
       )}
 
-      {importOpen && <ImportDialog initialFile={droppedFile} onClose={closeImport} onImported={() => { closeImport(); void load(); }} />}
+      {importOpen && <ImportDialog initialFiles={droppedFiles} onClose={closeImport} onImported={closeImport} />}
     </div>
   );
 }
@@ -141,8 +144,8 @@ function DocumentCard({ document }: { document: DocumentRecord }) {
   return <Link to={`/documents/${document.id}`} className="group block overflow-hidden rounded-2xl border border-violet-100 bg-white shadow-[0_6px_20px_rgba(82,65,168,0.05)] transition hover:-translate-y-1 hover:border-violet-200 hover:shadow-[0_12px_28px_rgba(82,65,168,0.10)] dark:border-violet-800 dark:bg-[#211b35] dark:hover:border-violet-600">{isImage && <div className="h-40 overflow-hidden bg-violet-50 dark:bg-violet-950"><img src={`/api/documents/${document.id}/file`} alt="" className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]" /></div>}<div className="p-5"><div className="flex items-start gap-3"><div className={`rounded-xl p-2.5 ${tone}`}>{isImage ? <ImageIcon size={18} /> : <FileText size={18} />}</div><div className="min-w-0 flex-1"><h2 className="truncate text-sm font-semibold text-violet-950 dark:text-violet-50">{document.title}</h2><p className="mt-1 truncate text-[10px] text-violet-400">{extension.toUpperCase() || 'Document'} · {document.category?.name ?? 'Uncategorized'}</p></div><span className="text-[10px] font-semibold text-violet-300 opacity-0 transition group-hover:opacity-100">Open</span></div><div className="mt-5 flex flex-wrap gap-1.5">{document.tags.slice(0, 3).map((tag) => <span key={tag.id} className="rounded-full bg-violet-50 px-2 py-1 text-[9px] font-medium text-violet-500 dark:bg-violet-900 dark:text-violet-300">{tag.name}</span>)}</div><div className="mt-5 flex items-center border-t border-violet-100 pt-3 text-[10px] text-violet-400 dark:border-violet-800"><span>{formatDate(document.currentVersion.importedAt)}</span><span className="ml-2">· {formatBytes(document.currentVersion.fileSize)}</span><Star size={14} className="ml-auto transition group-hover:fill-amber-300 group-hover:text-amber-400" /></div></div></Link>;
 }
 
-function ImportDialog({ initialFile, onClose, onImported }: { initialFile: File | null; onClose: () => void; onImported: () => void }) {
-  const [file, setFile] = useState<File | null>(initialFile);
+function ImportDialog({ initialFiles, onClose, onImported }: { initialFiles: File[]; onClose: () => void; onImported: () => void }) {
+  const [files, setFiles] = useState<File[]>(initialFiles);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -162,8 +165,8 @@ function ImportDialog({ initialFile, onClose, onImported }: { initialFile: File 
   }, []);
 
   useEffect(() => {
-    if (!file) { setOrganized(false); return; }
-    const words = file.name.replace(/\.[^.]+$/, '').toLocaleLowerCase().split(/[^\p{L}\p{N}]+/u).filter((word) => word.length > 2);
+    if (files.length === 0) { setOrganized(false); return; }
+    const words = files.flatMap((file) => file.name.replace(/\.[^.]+$/, '').toLocaleLowerCase().split(/[^\p{L}\p{N}]+/u).filter((word) => word.length > 2));
     const haystack = words.join(' ');
     const matchedCategory = categories.find((item) => haystack.includes(item.name.toLocaleLowerCase()));
     const rules: Array<[RegExp, string]> = [
@@ -175,27 +178,46 @@ function ImportDialog({ initialFile, onClose, onImported }: { initialFile: File 
     ];
     const ruleCategory = rules.find(([pattern]) => pattern.test(haystack))?.[1];
     const matchedTags = knownTags.filter((tag) => words.some((word) => tag.name.toLocaleLowerCase().includes(word) || word.includes(tag.name.toLocaleLowerCase()))).slice(0, 5);
-    const extension = file.name.split('.').pop()?.toLocaleLowerCase();
+    const extensions = files.map((file) => file.name.split('.').pop()?.toLocaleLowerCase()).filter(Boolean) as string[];
+    const extension = extensions.length === 1 ? extensions[0] : undefined;
     const formatTag = extension && ['pdf', 'docx', 'txt', 'md', 'jpg', 'jpeg', 'png', 'webp'].includes(extension) ? extension.toUpperCase() : null;
-    setCategory((current) => current || matchedCategory?.name || ruleCategory || 'Inbox');
+    const allImages = extensions.length > 0 && extensions.every((value) => ['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif'].includes(value));
+    setCategory((current) => current || matchedCategory?.name || ruleCategory || (allImages ? 'Images' : 'Inbox'));
     setTags((current) => current || [...new Set([...matchedTags.map((tag) => tag.name), ...(formatTag ? [formatTag] : [])])].join(', '));
     setOrganized(true);
-  }, [file, categories, knownTags]);
+  }, [files, categories, knownTags]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
-    if (!file) { setError('Choose a file to import.'); return; }
+    if (files.length === 0) { setError('Choose one or more files to import.'); return; }
     setSaving(true);
     setError(null);
-    const values = new FormData(form);
-    values.set('file', file);
-    try { await api('/documents/import', { method: 'POST', body: values }); announceWorkspaceChange('documents', 'categories'); onImported(); }
-    catch (caught) { setError(caught instanceof ApiError ? caught.message : 'The document could not be imported.'); }
+    const sharedValues = new FormData(form);
+    try {
+      const results = await Promise.allSettled(files.map(async (file) => {
+        const values = new FormData();
+        values.set('file', file);
+        values.set('version', String(sharedValues.get('version') || '1.0'));
+        values.set('category', String(sharedValues.get('category') || ''));
+        values.set('tags', String(sharedValues.get('tags') || ''));
+        if (files.length === 1) values.set('title', String(sharedValues.get('title') || ''));
+        await api('/documents/import', { method: 'POST', body: values });
+      }));
+      const failed = results.flatMap((result, index) => result.status === 'rejected' ? [{ file: files[index]!, reason: result.reason }] : []);
+      const importedCount = results.length - failed.length;
+      if (importedCount > 0) announceWorkspaceChange('documents', 'categories');
+      if (failed.length === 0) { onImported(); return; }
+      setFiles(failed.map((failure) => failure.file));
+      const firstReason = failed[0]?.reason;
+      const message = firstReason instanceof ApiError ? firstReason.message : 'Some files could not be imported.';
+      setError(`${importedCount > 0 ? `${importedCount} imported. ` : ''}${failed.length} failed: ${message}`);
+    }
+    catch { setError('The files could not be imported.'); }
     finally { setSaving(false); }
   }
 
-  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-violet-950/40 p-4 backdrop-blur-sm"><div className="w-full max-w-lg rounded-2xl border border-violet-100 bg-white shadow-2xl dark:border-violet-700 dark:bg-[#211b35]"><div className="flex items-start justify-between border-b border-violet-100 px-6 py-5 dark:border-violet-800"><div><h2 className="font-serif text-xl font-semibold text-violet-950 dark:text-violet-50">Import file</h2><p className="mt-1 text-xs text-violet-500 dark:text-violet-300">Documents and images · maximum 50 MB</p></div><button onClick={onClose} aria-label="Close" className="rounded-lg p-1.5 text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900"><X size={18} /></button></div><form onSubmit={submit} className="space-y-4 p-6"><label className="block"><span className="mb-1.5 block text-xs font-semibold text-violet-600 dark:text-violet-300">File</span><input name="file" type="file" accept=".pdf,.docx,.txt,.md,.markdown,.jpg,.jpeg,.png,.webp,.gif,.avif" onChange={(event) => setFile(event.target.files?.[0] ?? null)} className="block w-full rounded-xl border border-violet-200 bg-violet-50/50 px-3 py-2 text-xs text-violet-600 file:mr-3 file:rounded-lg file:border-0 file:bg-violet-200 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-violet-700 dark:border-violet-700 dark:bg-violet-950 dark:text-violet-300" />{file && <span className="mt-2 block truncate rounded-lg bg-teal-50 px-3 py-2 text-[11px] font-semibold text-teal-700 dark:bg-teal-950 dark:text-teal-300">Ready: {file.name}</span>}</label>{organized && <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 dark:border-amber-800 dark:bg-amber-950/30"><img src="/pini-mascot.png" alt="" className="h-11 w-auto" /><div><p className="text-[11px] font-bold text-violet-800 dark:text-violet-100">Pini organized this automatically</p><p className="mt-0.5 text-[10px] leading-4 text-violet-500 dark:text-violet-300">Review or change the suggested category and tags before importing.</p></div></div>}<div className="grid grid-cols-[1fr_100px] gap-4"><Field label="Title" name="title" placeholder="Defaults to filename" /><Field label="Version" name="version" defaultValue="1.0" /></div><Field label="Category" name="category" value={category} onChange={(event) => setCategory(event.target.value)} placeholder="e.g. SDK" /><Field label="Tags" name="tags" value={tags} onChange={(event) => setTags(event.target.value)} placeholder="API, wallet, integration" hint="Pini suggests these from the filename and your existing organization." />{error && <div className={`rounded-xl border px-3 py-2 text-xs ${error.includes('already saved') ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300' : 'border-red-200 bg-red-50 text-red-700'}`}>{error}</div>}<div className="flex justify-end gap-2 pt-2"><button type="button" onClick={onClose} className="rounded-xl border border-violet-200 px-4 py-2 text-xs font-semibold text-violet-600 hover:bg-violet-50 dark:border-violet-700 dark:text-violet-300 dark:hover:bg-violet-900">Cancel</button><button disabled={saving} className="rounded-xl bg-coral-500 px-4 py-2 text-xs font-semibold text-white hover:bg-coral-600 disabled:opacity-50">{saving ? 'Checking & importing…' : 'Import file'}</button></div></form></div></div>;
+  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-violet-950/40 p-4 backdrop-blur-sm"><div className="w-full max-w-lg rounded-2xl border border-violet-100 bg-white shadow-2xl dark:border-violet-700 dark:bg-[#211b35]"><div className="flex items-start justify-between border-b border-violet-100 px-6 py-5 dark:border-violet-800"><div><h2 className="font-serif text-xl font-semibold text-violet-950 dark:text-violet-50">Import files</h2><p className="mt-1 text-xs text-violet-500 dark:text-violet-300">Documents and images · maximum 50 MB each</p></div><button onClick={onClose} aria-label="Close" className="rounded-lg p-1.5 text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900"><X size={18} /></button></div><form onSubmit={submit} className="space-y-4 p-6"><label className="block"><span className="mb-1.5 block text-xs font-semibold text-violet-600 dark:text-violet-300">Files</span><input name="file" type="file" multiple accept=".pdf,.docx,.txt,.md,.markdown,.jpg,.jpeg,.png,.webp,.gif,.avif" onChange={(event) => setFiles(Array.from(event.target.files ?? []))} className="block w-full rounded-xl border border-violet-200 bg-violet-50/50 px-3 py-2 text-xs text-violet-600 file:mr-3 file:rounded-lg file:border-0 file:bg-violet-200 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-violet-700 dark:border-violet-700 dark:bg-violet-950 dark:text-violet-300" />{files.length > 0 && <div className="mt-2 max-h-24 space-y-1 overflow-y-auto rounded-lg bg-teal-50 px-3 py-2 text-[11px] font-semibold text-teal-700 dark:bg-teal-950 dark:text-teal-300"><p>{files.length} {files.length === 1 ? 'file' : 'files'} ready</p>{files.slice(0, 4).map((file) => <p key={`${file.name}-${file.lastModified}`} className="truncate font-normal">{file.name}</p>)}{files.length > 4 && <p className="font-normal">+{files.length - 4} more</p>}</div>}</label>{organized && <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 dark:border-amber-800 dark:bg-amber-950/30"><img src="/pini-mascot.png" alt="" className="h-11 w-auto" /><div><p className="text-[11px] font-bold text-violet-800 dark:text-violet-100">Pini organized these automatically</p><p className="mt-0.5 text-[10px] leading-4 text-violet-500 dark:text-violet-300">Images will appear in Images automatically. Review the shared category and tags before importing.</p></div></div>}<div className="grid grid-cols-[1fr_100px] gap-4"><Field label="Title" name="title" disabled={files.length > 1} placeholder={files.length > 1 ? 'Uses each filename' : 'Defaults to filename'} /><Field label="Version" name="version" defaultValue="1.0" /></div><Field label="Category" name="category" value={category} onChange={(event) => setCategory(event.target.value)} placeholder="e.g. SDK" /><Field label="Tags" name="tags" value={tags} onChange={(event) => setTags(event.target.value)} placeholder="API, wallet, integration" hint="Applied to every selected file. Images still appear under Images automatically." />{error && <div className={`rounded-xl border px-3 py-2 text-xs ${error.includes('already saved') ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300' : 'border-red-200 bg-red-50 text-red-700'}`}>{error}</div>}<div className="flex justify-end gap-2 pt-2"><button type="button" onClick={onClose} className="rounded-xl border border-violet-200 px-4 py-2 text-xs font-semibold text-violet-600 hover:bg-violet-50 dark:border-violet-700 dark:text-violet-300 dark:hover:bg-violet-900">Cancel</button><button disabled={saving} className="rounded-xl bg-coral-500 px-4 py-2 text-xs font-semibold text-white hover:bg-coral-600 disabled:opacity-50">{saving ? `Importing ${files.length}…` : `Import ${files.length || ''} ${files.length === 1 ? 'file' : 'files'}`}</button></div></form></div></div>;
 }
 
 function Field({ label, hint, ...props }: { label: string; hint?: string } & InputHTMLAttributes<HTMLInputElement>) {

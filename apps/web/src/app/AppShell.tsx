@@ -1,9 +1,9 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
-import type { Category, Task } from '@apotheke/contracts';
+import type { Category, IntegrationSpace, Task } from '@apotheke/contracts';
 import {
   FileText,
   LayoutDashboard,
-  PlugZap,
+  FolderKanban,
   ListTodo,
   Menu,
   Moon,
@@ -15,10 +15,13 @@ import {
   AlertTriangle,
   Bell,
   CheckCircle2,
+  Pencil,
+  Plus,
+  Trash2,
 } from 'lucide-react';
-import { NavLink, useNavigate } from 'react-router-dom';
-import { api } from '../lib/api';
-import { onWorkspaceChange } from '../lib/workspaceEvents';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { api, jsonRequest } from '../lib/api';
+import { announceWorkspaceChange, onWorkspaceChange } from '../lib/workspaceEvents';
 import { PiniAssistant } from '../components/PiniAssistant';
 import { CommandPalette } from '../components/CommandPalette';
 
@@ -27,12 +30,16 @@ const navItems = [
   { to: '/documents', label: 'Documents', icon: FileText, end: false },
   { to: '/images', label: 'Images', icon: ImageIcon, end: false },
   { to: '/notes', label: 'Notes', icon: StickyNote, end: false },
-  { to: '/integrations', label: 'Integrations', icon: PlugZap, end: false },
   { to: '/tasks', label: 'Tasks', icon: ListTodo, end: false },
 ] as const;
 
 function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose: () => void }) {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [categories, setCategories] = useState<Category[]>([]);
+  const [spaces, setSpaces] = useState<IntegrationSpace[]>([]);
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
+  const [categoryQuery, setCategoryQuery] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -45,6 +52,39 @@ function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose: () => 
     window.addEventListener('focus', refreshOnFocus);
     return () => { active = false; unsubscribe(); window.removeEventListener('focus', refreshOnFocus); };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    const load = () => api<{ spaces: IntegrationSpace[] }>('/integrations/spaces')
+      .then((result) => { if (active) setSpaces(result.spaces); })
+      .catch(() => undefined);
+    void load();
+    const unsubscribe = onWorkspaceChange((resources) => { if (resources.includes('integrations')) void load(); });
+    return () => { active = false; unsubscribe(); };
+  }, []);
+
+  async function createSpace() {
+    const name = window.prompt('Name your new section (for example, Projects):')?.trim();
+    if (!name) return;
+    const result = await api<{ space: IntegrationSpace }>('/integrations/spaces', jsonRequest('POST', { name }));
+    announceWorkspaceChange('integrations');
+    navigate(`/integrations?space=${result.space.id}`);
+    onClose();
+  }
+
+  async function renameSpace(space: IntegrationSpace) {
+    const name = window.prompt('Rename section:', space.name)?.trim();
+    if (!name || name === space.name) return;
+    await api(`/integrations/spaces/${space.id}`, jsonRequest('PATCH', { name }));
+    announceWorkspaceChange('integrations');
+  }
+
+  async function removeSpace(space: IntegrationSpace) {
+    if (!window.confirm(`Delete “${space.name}” and every folder and item inside it?`)) return;
+    await api(`/integrations/spaces/${space.id}`, { method: 'DELETE' });
+    announceWorkspaceChange('integrations');
+    navigate('/');
+  }
 
   return (
     <aside className={`fixed inset-y-0 left-0 z-30 flex w-60 flex-col border-r border-violet-700 bg-gradient-to-b from-violet-900 to-violet-950 text-violet-100 shadow-xl shadow-violet-950/10 transition-transform dark:border-violet-200 dark:from-[#f7f4ff] dark:to-[#ebe5fb] dark:text-violet-950 dark:shadow-black/20 sm:translate-x-0 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
@@ -71,26 +111,37 @@ function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose: () => 
               {label}
             </NavLink>
           ))}
+          <div className="!mt-3 flex items-center justify-between px-3 pb-1 pt-2">
+            <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-violet-400 dark:text-violet-500">Folder spaces</span>
+            <button onClick={() => void createSpace()} aria-label="Add folder section" className="rounded-md p-1 text-violet-300 hover:bg-violet-800 hover:text-white dark:text-violet-500 dark:hover:bg-white"><Plus size={13} /></button>
+          </div>
+          {spaces.map((space) => {
+            const activeSpace = location.pathname === '/integrations' && new URLSearchParams(location.search).get('space') === space.id;
+            return <div key={space.id} className={`group flex items-center rounded-md transition-colors ${activeSpace ? 'bg-violet-700 text-white shadow-sm ring-1 ring-violet-500/40 dark:bg-white dark:text-violet-800 dark:ring-violet-200' : 'text-violet-200 hover:bg-violet-800/70 hover:text-white dark:text-violet-700 dark:hover:bg-white dark:hover:text-violet-950'}`}>
+              <Link to={`/integrations?space=${space.id}`} onClick={onClose} className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2 text-[13px] font-medium"><FolderKanban size={16} strokeWidth={1.8} className="shrink-0" /><span className="truncate">{space.name}</span></Link>
+              <button onClick={() => void renameSpace(space)} aria-label={`Rename ${space.name}`} className="p-1 text-current opacity-0 transition hover:text-amber-300 group-hover:opacity-70"><Pencil size={12} /></button>
+              <button onClick={() => void removeSpace(space)} aria-label={`Delete ${space.name}`} className="mr-2 p-1 text-current opacity-0 transition hover:text-red-300 group-hover:opacity-70"><Trash2 size={12} /></button>
+            </div>;
+          })}
         </div>
       </nav>
 
       <div className="min-h-0 flex-1 border-t border-violet-700/70 px-3 py-4 dark:border-violet-200">
         <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-400 dark:text-violet-500">Categories</p>
-        <div className="max-h-full space-y-0.5 overflow-auto">
+        <div className="space-y-0.5">
           {categories.length === 0 ? (
             <p className="px-3 py-2 text-xs leading-5 text-violet-400 dark:text-violet-500">Categories appear here as you use them.</p>
-          ) : categories.map((category) => (
+          ) : categories.slice(0, 4).map((category) => (
             <NavLink key={category.id} to={`/categories/${category.id}`} onClick={onClose} className={({ isActive }) => `flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-xs transition ${isActive ? 'bg-violet-700 font-semibold text-white dark:bg-white dark:text-violet-900' : 'text-violet-200 hover:bg-violet-800/60 dark:text-violet-700 dark:hover:bg-white'}`}>
               <span className="h-1.5 w-1.5 rounded-full bg-teal-300" />
               <span className="truncate">{category.name}</span>
             </NavLink>
           ))}
+          {categories.length > 4 && <button onClick={() => { setCategoryQuery(''); setCategoriesOpen(true); }} className="mt-2 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[11px] font-semibold text-violet-300 transition hover:bg-violet-800/60 hover:text-white dark:text-violet-500 dark:hover:bg-white dark:hover:text-violet-900"><Search size={13} /><span>View all categories</span><span className="ml-auto rounded-full bg-violet-800 px-2 py-0.5 text-[9px] text-violet-200 dark:bg-violet-100 dark:text-violet-600">{categories.length}</span></button>}
         </div>
       </div>
 
-      <div className="border-t border-violet-700/70 px-5 py-3 text-[10px] uppercase tracking-[0.12em] text-violet-400 dark:border-violet-200 dark:text-violet-500">
-        Private · On this device
-      </div>
+      {categoriesOpen && <><button aria-label="Close categories" onClick={() => setCategoriesOpen(false)} className="fixed inset-0 z-40 cursor-default bg-violet-950/20 backdrop-blur-[1px]" /><section className="fixed bottom-5 left-3 z-50 w-[min(330px,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border border-violet-200 bg-white text-violet-950 shadow-2xl dark:border-violet-700 dark:bg-[#211b35] dark:text-white sm:left-5"><header className="flex items-center justify-between border-b border-violet-100 px-4 py-3 dark:border-violet-800"><div><h2 className="text-sm font-bold">All categories</h2><p className="mt-0.5 text-[10px] text-violet-400">Find and open a category</p></div><button onClick={() => setCategoriesOpen(false)} aria-label="Close" className="rounded-lg p-1.5 text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900"><X size={16} /></button></header><div className="p-3"><div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-violet-300" size={14} /><input autoFocus value={categoryQuery} onChange={(event) => setCategoryQuery(event.target.value)} placeholder="Search categories…" className="h-10 w-full rounded-xl border border-violet-200 bg-violet-50/60 pl-9 pr-3 text-xs outline-none focus:border-violet-400 dark:border-violet-700 dark:bg-violet-950" /></div><div className="mt-2 max-h-72 space-y-1 overflow-y-auto pr-1">{categories.filter((category) => category.name.toLocaleLowerCase().includes(categoryQuery.trim().toLocaleLowerCase())).map((category) => <NavLink key={category.id} to={`/categories/${category.id}`} onClick={() => { setCategoriesOpen(false); onClose(); }} className={({ isActive }) => `flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-medium transition ${isActive ? 'bg-violet-100 text-violet-800 dark:bg-violet-700 dark:text-white' : 'text-violet-700 hover:bg-violet-50 dark:text-violet-200 dark:hover:bg-violet-900'}`}><span className="h-2 w-2 shrink-0 rounded-full bg-teal-400" /><span className="min-w-0 flex-1 truncate">{category.name}</span></NavLink>)}</div></div></section></>}
     </aside>
   );
 }
