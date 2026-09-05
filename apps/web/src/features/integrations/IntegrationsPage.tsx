@@ -70,7 +70,9 @@ export function IntegrationsPage() {
     const unsubscribe = onWorkspaceChange((resources) => {
       if (resources.includes('integrations')) void load().catch((reason: Error) => setError(reason.message));
     });
-    return unsubscribe;
+    const refreshOnFocus = () => void load().catch((reason: Error) => setError(reason.message));
+    window.addEventListener('focus', refreshOnFocus);
+    return () => { unsubscribe(); window.removeEventListener('focus', refreshOnFocus); };
   }, [requestedFolderId, requestedSpaceId]);
 
   const requestedFolder = workspace.folders.find((folder) => folder.id === requestedFolderId);

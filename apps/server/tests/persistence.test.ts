@@ -21,6 +21,7 @@ import {
 import { answerQuestion, search } from '../src/features/search/searchService.js';
 import { createTask, deleteTask, listTasks, updateTask } from '../src/features/tasks/taskRepository.js';
 import { createVaultEntry, deleteVaultEntry, getVaultKey, listVaultEntries, lockVault, setupVault, unlockVault, updateVaultEntry, vaultConfigured } from '../src/features/vault/vaultService.js';
+import { authConfigured, login, logout, register, userForToken } from '../src/features/auth/authService.js';
 
 describe('local knowledge persistence', () => {
   let directory: string;
@@ -74,6 +75,17 @@ describe('local knowledge persistence', () => {
     expect(answer.answer).toContain('subtract funds');
     expect(answer.answer).toBe('Debit transactions subtract funds from the player balance.');
     expect(answer.sources[0]?.entityId).toBe(document.id);
+  });
+
+  it('registers, authenticates and closes a local account session', () => {
+    expect(authConfigured(database)).toBe(false);
+    const created = register(database, { name: 'Peanut Owner', email: 'owner@example.com', password: 'a-secure-password' });
+    expect(authConfigured(database)).toBe(true);
+    expect(userForToken(database, created.token).email).toBe('owner@example.com');
+    expect(login(database, { email: 'OWNER@example.com', password: 'a-secure-password' }).user.name).toBe('Peanut Owner');
+    expect(() => login(database, { email: 'owner@example.com', password: 'wrong-password' })).toThrow('Incorrect email or password.');
+    logout(created.token);
+    expect(() => userForToken(database, created.token)).toThrow('Please sign in to Peanut.');
   });
 
   it('indexes image titles and filenames without requiring extracted text', () => {

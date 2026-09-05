@@ -22,7 +22,15 @@ async function parseError(response: Response): Promise<ApiError> {
 }
 
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`/api${path}`, init);
+  const token = localStorage.getItem('peanut-auth-token');
+  const headers = new Headers(init?.headers);
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  if (!token && localStorage.getItem('peanut-local-mode') === '1') headers.set('X-Peanut-Local-Mode', '1');
+  const response = await fetch(`/api${path}`, { ...init, headers });
+  if (response.status === 401 && !path.startsWith('/auth/')) {
+    localStorage.removeItem('peanut-auth-token');
+    window.dispatchEvent(new Event('peanut-auth-changed'));
+  }
   if (!response.ok) throw await parseError(response);
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;

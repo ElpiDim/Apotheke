@@ -182,4 +182,18 @@ export const userProfileSchema = z.object({
     updatedAt: z.string(),
 });
 export const updateUserProfileSchema = userProfileSchema.omit({ updatedAt: true });
+export const authUserSchema = z.object({
+    id: entityIdSchema,
+    name: z.string(),
+    email: z.email(),
+});
+export const registerSchema = z.object({
+    name: z.string().trim().min(1).max(120),
+    email: z.email().transform((value) => value.toLocaleLowerCase()),
+    password: z.string().min(10).max(1_000),
+});
+export const loginSchema = z.object({
+    email: z.email().transform((value) => value.toLocaleLowerCase()),
+    password: z.string().min(1).max(1_000),
+});
 //# sourceMappingURL=index.js.map

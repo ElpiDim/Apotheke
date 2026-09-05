@@ -5,7 +5,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { EmptyState } from '../../components/EmptyState';
 import { api, ApiError } from '../../lib/api';
 import { formatBytes, formatDate } from '../../lib/format';
-import { announceWorkspaceChange } from '../../lib/workspaceEvents';
+import { announceWorkspaceChange, onWorkspaceChange } from '../../lib/workspaceEvents';
 
 type FileFilter = 'all' | 'pdf' | 'docx' | 'text' | 'markdown' | 'image';
 type SortMode = 'updated' | 'name';
@@ -46,7 +46,15 @@ export function DocumentsPage({ initialFilter = 'all' }: { initialFilter?: FileF
     }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    void load();
+    const unsubscribe = onWorkspaceChange((resources) => {
+      if (resources.includes('documents')) void load();
+    });
+    const refreshOnFocus = () => void load();
+    window.addEventListener('focus', refreshOnFocus);
+    return () => { unsubscribe(); window.removeEventListener('focus', refreshOnFocus); };
+  }, [load]);
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase();

@@ -222,6 +222,23 @@ export const userProfileSchema = z.object({
 
 export const updateUserProfileSchema = userProfileSchema.omit({ updatedAt: true });
 
+export const authUserSchema = z.object({
+  id: entityIdSchema,
+  name: z.string(),
+  email: z.email(),
+});
+
+export const registerSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  email: z.email().transform((value) => value.toLocaleLowerCase()),
+  password: z.string().min(10).max(1_000),
+});
+
+export const loginSchema = z.object({
+  email: z.email().transform((value) => value.toLocaleLowerCase()),
+  password: z.string().min(1).max(1_000),
+});
+
 export type Tag = z.infer<typeof tagSchema>;
 export type Category = z.infer<typeof categorySchema>;
 export type DocumentRecord = z.infer<typeof documentSchema>;
@@ -250,3 +267,6 @@ export type CreateVaultEntryInput = z.infer<typeof createVaultEntrySchema>;
 export type UpdateVaultEntryInput = z.infer<typeof updateVaultEntrySchema>;
 export type UserProfile = z.infer<typeof userProfileSchema>;
 export type UpdateUserProfileInput = z.infer<typeof updateUserProfileSchema>;
+export type AuthUser = z.infer<typeof authUserSchema>;
+export type RegisterInput = z.infer<typeof registerSchema>;
+export type LoginInput = z.infer<typeof loginSchema>;

@@ -5,6 +5,7 @@ import { Link, useParams } from 'react-router-dom';
 import { EmptyState } from '../../components/EmptyState';
 import { api } from '../../lib/api';
 import { formatBytes, formatDate } from '../../lib/format';
+import { onWorkspaceChange } from '../../lib/workspaceEvents';
 
 export function CategoriesPage() {
   const { categoryId } = useParams();
@@ -14,15 +15,24 @@ export function CategoriesPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    void Promise.all([
+    let active = true;
+    const load = () => Promise.all([
       api<{ categories: Category[] }>('/categories'),
       categoryId ? api<{ documents: DocumentRecord[] }>('/documents') : Promise.resolve({ documents: [] }),
       categoryId ? api<{ notes: Note[] }>('/notes') : Promise.resolve({ notes: [] }),
     ]).then(([categoryResult, documentResult, noteResult]) => {
-      setCategories(categoryResult.categories);
-      setDocuments(documentResult.documents);
-      setNotes(noteResult.notes);
-    }).finally(() => setLoading(false));
+      if (!active) return;
+      setCategories(categoryResult.categories); setDocuments(documentResult.documents); setNotes(noteResult.notes);
+    }).finally(() => {
+      if (active) setLoading(false);
+    });
+    void load();
+    const unsubscribe = onWorkspaceChange((resources) => {
+      if (resources.some((resource) => ['categories', 'documents', 'notes'].includes(resource))) void load();
+    });
+    const refreshOnFocus = () => void load();
+    window.addEventListener('focus', refreshOnFocus);
+    return () => { active = false; unsubscribe(); window.removeEventListener('focus', refreshOnFocus); };
   }, [categoryId]);
 
   const category = categories.find((item) => item.id === categoryId);

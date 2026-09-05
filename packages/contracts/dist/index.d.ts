@@ -248,6 +248,20 @@ export declare const updateUserProfileSchema: z.ZodObject<{
     role: z.ZodString;
     bio: z.ZodString;
 }, z.core.$strip>;
+export declare const authUserSchema: z.ZodObject<{
+    id: z.ZodString;
+    name: z.ZodString;
+    email: z.ZodEmail;
+}, z.core.$strip>;
+export declare const registerSchema: z.ZodObject<{
+    name: z.ZodString;
+    email: z.ZodPipe<z.ZodEmail, z.ZodTransform<string, string>>;
+    password: z.ZodString;
+}, z.core.$strip>;
+export declare const loginSchema: z.ZodObject<{
+    email: z.ZodPipe<z.ZodEmail, z.ZodTransform<string, string>>;
+    password: z.ZodString;
+}, z.core.$strip>;
 export type Tag = z.infer<typeof tagSchema>;
 export type Category = z.infer<typeof categorySchema>;
 export type DocumentRecord = z.infer<typeof documentSchema>;
@@ -276,4 +290,7 @@ export type CreateVaultEntryInput = z.infer<typeof createVaultEntrySchema>;
 export type UpdateVaultEntryInput = z.infer<typeof updateVaultEntrySchema>;
 export type UserProfile = z.infer<typeof userProfileSchema>;
 export type UpdateUserProfileInput = z.infer<typeof updateUserProfileSchema>;
+export type AuthUser = z.infer<typeof authUserSchema>;
+export type RegisterInput = z.infer<typeof registerSchema>;
+export type LoginInput = z.infer<typeof loginSchema>;
 //# sourceMappingURL=index.d.ts.map

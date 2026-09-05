@@ -8,6 +8,8 @@ import { searchRouter } from './features/search/routes.js';
 import { vaultRouter } from './features/vault/routes.js';
 import { profileRouter } from './features/profile/routes.js';
 import { systemRouter } from './features/system/routes.js';
+import { authRouter } from './features/auth/routes.js';
+import { requireAuth } from './middleware/auth.js';
 import { errorHandler } from './middleware/errors.js';
 
 export function createApp(): express.Express {
@@ -15,7 +17,9 @@ export function createApp(): express.Express {
   app.disable('x-powered-by');
   app.use(express.json({ limit: '2mb' }));
 
+  app.use('/api/auth', authRouter);
   app.use('/api', systemRouter);
+  app.use('/api', requireAuth);
   app.use('/api/documents', documentsRouter);
   app.use('/api/notes', notesRouter);
   app.use('/api/integrations', integrationsRouter);

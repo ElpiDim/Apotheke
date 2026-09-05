@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent, type InputHTMLAttributes,
 import type { Task } from '@apotheke/contracts';
 import { CalendarDays, Check, ChevronLeft, ChevronRight, Circle, List, MoreVertical, Pencil, Plus, Sparkles, Trash2, X } from 'lucide-react';
 import { api, jsonRequest } from '../../lib/api';
-import { announceWorkspaceChange } from '../../lib/workspaceEvents';
+import { announceWorkspaceChange, onWorkspaceChange } from '../../lib/workspaceEvents';
 import { useSearchParams } from 'react-router-dom';
 
 type TaskFilter = 'all' | 'open' | 'done';
@@ -38,7 +38,13 @@ export function TasksPage() {
     setTasks(result.tasks);
   }
 
-  useEffect(() => { void load().catch((reason: Error) => setError(reason.message)); }, []);
+  useEffect(() => {
+    const refresh = () => void load().catch((reason: Error) => setError(reason.message));
+    refresh();
+    const unsubscribe = onWorkspaceChange((resources) => { if (resources.includes('tasks')) refresh(); });
+    window.addEventListener('focus', refresh);
+    return () => { unsubscribe(); window.removeEventListener('focus', refresh); };
+  }, []);
 
   const today = localDay(new Date());
   const filtered = tasks.filter((task) => filter === 'all' || filter === 'done' && task.completedAt || filter === 'open' && !task.completedAt);

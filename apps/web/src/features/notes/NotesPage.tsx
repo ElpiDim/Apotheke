@@ -4,7 +4,7 @@ import { Clock3, Plus, Save, Sparkles, Star, StickyNote, Trash2, X } from 'lucid
 import { EmptyState } from '../../components/EmptyState';
 import { api, ApiError, jsonRequest } from '../../lib/api';
 import { formatDate } from '../../lib/format';
-import { announceWorkspaceChange } from '../../lib/workspaceEvents';
+import { announceWorkspaceChange, onWorkspaceChange } from '../../lib/workspaceEvents';
 import { useSearchParams } from 'react-router-dom';
 
 const emptyDraft: CreateNoteInput = { title: '', content: '', category: null, tags: [] };
@@ -26,7 +26,15 @@ export function NotesPage() {
     setNotes(result.notes);
   }, []);
 
-  useEffect(() => { void load().catch(() => undefined); }, [load]);
+  useEffect(() => {
+    void load().catch(() => undefined);
+    const unsubscribe = onWorkspaceChange((resources) => {
+      if (resources.includes('notes')) void load().catch(() => undefined);
+    });
+    const refreshOnFocus = () => void load().catch(() => undefined);
+    window.addEventListener('focus', refreshOnFocus);
+    return () => { unsubscribe(); window.removeEventListener('focus', refreshOnFocus); };
+  }, [load]);
 
   const selected = useMemo(() => notes.find((note) => note.id === selectedId) ?? null, [notes, selectedId]);
   const visible = useMemo(() => notes.filter((note) => {

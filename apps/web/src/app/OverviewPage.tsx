@@ -4,6 +4,7 @@ import { BookOpen, ChevronRight, FileText, Library, Search, Sparkles, Star, Stic
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { formatDate } from '../lib/format';
+import { onWorkspaceChange } from '../lib/workspaceEvents';
 
 interface OverviewState {
   documents: DocumentRecord[];
@@ -14,12 +15,20 @@ export function OverviewPage() {
   const [state, setState] = useState<OverviewState>({ documents: [], notes: [] });
 
   useEffect(() => {
-    void Promise.all([
+    let active = true;
+    const load = () => Promise.all([
       api<{ documents: DocumentRecord[] }>('/documents'),
       api<{ notes: Note[] }>('/notes'),
     ]).then(([documents, notes]) => {
-      setState({ documents: documents.documents, notes: notes.notes });
+      if (active) setState({ documents: documents.documents, notes: notes.notes });
     }).catch(() => undefined);
+    void load();
+    const unsubscribe = onWorkspaceChange((resources) => {
+      if (resources.some((resource) => ['documents', 'notes', 'categories'].includes(resource))) void load();
+    });
+    const refreshOnFocus = () => void load();
+    window.addEventListener('focus', refreshOnFocus);
+    return () => { active = false; unsubscribe(); window.removeEventListener('focus', refreshOnFocus); };
   }, []);
 
   const recent = [
