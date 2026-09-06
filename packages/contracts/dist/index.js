@@ -48,7 +48,7 @@ export const importDocumentFieldsSchema = z.object({
     version: z.string().trim().min(1).max(40).default('1.0'),
 });
 export const searchResultSchema = z.object({
-    entityType: z.enum(['document', 'note', 'integration']),
+    entityType: z.enum(['document', 'note', 'integration', 'category']),
     entityId: entityIdSchema,
     title: z.string(),
     snippet: z.string(),

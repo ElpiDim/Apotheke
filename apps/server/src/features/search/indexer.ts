@@ -9,9 +9,13 @@ interface SearchSourceRow {
   originalFilename?: string | null;
 }
 
+function normalizeSearchText(value: string): string {
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase();
+}
+
 function replaceIndexRow(
   database: ApothekeDatabase,
-  entityType: 'document' | 'note' | 'integration',
+  entityType: 'document' | 'note' | 'integration' | 'category',
   entityId: string,
   source: SearchSourceRow,
 ): void {
@@ -19,7 +23,8 @@ function replaceIndexRow(
     .prepare('DELETE FROM search_index WHERE entity_type = ? AND entity_id = ?')
     .run(entityType, entityId);
 
-  const metadata = [source.category, source.tags, source.version, source.originalFilename].filter(Boolean).join(' ');
+  const visibleMetadata = [source.category, source.tags, source.version, source.originalFilename].filter(Boolean).join(' ');
+  const metadata = `${visibleMetadata} ${normalizeSearchText([source.title, source.content, visibleMetadata].join(' '))}`.trim();
   database
     .prepare(
       `INSERT INTO search_index (entity_type, entity_id, title, content, metadata)
@@ -108,9 +113,21 @@ export function reindexIntegrationEntry(database: ApothekeDatabase, entryId: str
   });
 }
 
+export function reindexCategory(database: ApothekeDatabase, categoryId: string): void {
+  const row = database.prepare('SELECT name AS title FROM categories WHERE id = ?').get(categoryId) as { title: string } | undefined;
+  if (!row) return;
+  replaceIndexRow(database, 'category', categoryId, {
+    title: row.title,
+    content: 'Category',
+    category: null,
+    tags: null,
+    version: null,
+  });
+}
+
 export function removeFromIndex(
   database: ApothekeDatabase,
-  entityType: 'document' | 'note' | 'integration',
+  entityType: 'document' | 'note' | 'integration' | 'category',
   entityId: string,
 ): void {
   database

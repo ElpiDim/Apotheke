@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { ApothekeDatabase } from '../../database/database.js';
+import { reindexCategory } from '../search/indexer.js';
 
 interface IdRow {
   id: string;
@@ -31,6 +32,7 @@ export function ensureCategory(
     .get(name) as IdRow | undefined;
 
   if (!row) throw new Error(`Category could not be resolved: ${name}`);
+  reindexCategory(database, row.id);
   return row.id;
 }
 

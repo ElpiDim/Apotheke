@@ -60,7 +60,7 @@ export const importDocumentFieldsSchema = z.object({
 });
 
 export const searchResultSchema = z.object({
-  entityType: z.enum(['document', 'note', 'integration']),
+  entityType: z.enum(['document', 'note', 'integration', 'category']),
   entityId: entityIdSchema,
   title: z.string(),
   snippet: z.string(),

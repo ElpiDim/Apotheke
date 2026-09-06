@@ -238,4 +238,20 @@ export const migrations: readonly Migration[] = [
       CREATE INDEX users_email_idx ON users(email COLLATE NOCASE);
     `,
   },
+  {
+    id: 11,
+    name: 'searchable_categories',
+    sql: `
+      INSERT INTO search_index (entity_type, entity_id, title, content, metadata)
+      SELECT 'category', id, name, 'Category', name FROM categories;
+    `,
+  },
+  {
+    id: 12,
+    name: 'accent_insensitive_search',
+    sql: `
+      UPDATE search_index
+      SET metadata = metadata || ' ' || normalize_search(title || ' ' || content || ' ' || metadata);
+    `,
+  },
 ];

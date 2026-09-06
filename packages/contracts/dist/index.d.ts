@@ -68,6 +68,7 @@ export declare const importDocumentFieldsSchema: z.ZodObject<{
 }, z.core.$strip>;
 export declare const searchResultSchema: z.ZodObject<{
     entityType: z.ZodEnum<{
+        category: "category";
         document: "document";
         integration: "integration";
         note: "note";
@@ -87,6 +88,7 @@ export declare const searchResponseSchema: z.ZodObject<{
     query: z.ZodString;
     results: z.ZodArray<z.ZodObject<{
         entityType: z.ZodEnum<{
+            category: "category";
             document: "document";
             integration: "integration";
             note: "note";

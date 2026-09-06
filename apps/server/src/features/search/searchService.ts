@@ -3,7 +3,7 @@ import type { ApothekeDatabase } from '../../database/database.js';
 import { buildFtsQuery } from './queryParser.js';
 
 interface MatchRow {
-  entityType: 'document' | 'note' | 'integration';
+  entityType: 'document' | 'note' | 'integration' | 'category';
   entityId: string;
   title: string;
   snippet: string;
@@ -76,13 +76,20 @@ export function search(database: ApothekeDatabase, rawQuery: string): SearchResu
      JOIN integration_spaces s ON s.id = f.space_id
      WHERE e.id = ?`,
   );
+  const categoryDetails = database.prepare(
+    `SELECT NULL AS category, NULL AS tags, NULL AS version, NULL AS mimeType,
+            created_at AS updatedAt, NULL AS integrationFolderId
+     FROM categories WHERE id = ?`,
+  );
 
   return matches.flatMap((match) => {
     const details = (match.entityType === 'document'
       ? documentDetails.get(match.entityId)
       : match.entityType === 'note'
         ? noteDetails.get(match.entityId)
-        : integrationDetails.get(match.entityId)) as DetailsRow | undefined;
+        : match.entityType === 'integration'
+          ? integrationDetails.get(match.entityId)
+          : categoryDetails.get(match.entityId)) as DetailsRow | undefined;
     if (!details) return [];
 
     return [{
@@ -182,7 +189,7 @@ export function answerQuestion(database: ApothekeDatabase, question: string): Ex
 
   const matches = search(database, keywords.join(' OR '));
   const sources = matches
-    .filter((match) => match.entityType !== 'document' || !match.mimeType?.startsWith('image/'))
+    .filter((match): match is SearchResult & { entityType: 'document' | 'note' | 'integration' } => match.entityType !== 'category' && (match.entityType !== 'document' || !match.mimeType?.startsWith('image/')))
     .map((match) => {
       const fallback = cleanExcerpt(match.snippet);
       return {

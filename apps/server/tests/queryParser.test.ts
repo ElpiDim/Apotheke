@@ -11,16 +11,16 @@ describe('buildFtsQuery', () => {
   });
 
   it('preserves exact phrases', () => {
-    expect(buildFtsQuery('"Bonus API"')).toBe('"Bonus API"');
+    expect(buildFtsQuery('"Bonus API"')).toBe('"bonus api"');
   });
 
   it('supports AND, OR and binary NOT', () => {
     expect(buildFtsQuery('SDK AND token OR wallet NOT legacy'))
-      .toBe('"SDK"* AND "token"* OR "wallet"* NOT "legacy"*');
+      .toBe('"sdk"* AND "token"* OR "wallet"* NOT "legacy"*');
   });
 
   it('normalizes AND NOT to FTS5 binary NOT', () => {
-    expect(buildFtsQuery('API AND NOT legacy')).toBe('"API"* NOT "legacy"*');
+    expect(buildFtsQuery('API AND NOT legacy')).toBe('"api"* NOT "legacy"*');
   });
 
   it('rejects malformed boolean searches', () => {

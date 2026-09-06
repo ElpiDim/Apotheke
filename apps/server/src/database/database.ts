@@ -9,6 +9,10 @@ export function openDatabase(databasePath: string): ApothekeDatabase {
   fs.mkdirSync(path.dirname(databasePath), { recursive: true });
 
   const database = new Database(databasePath);
+  database.function('normalize_search', (value: unknown) => String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase());
   database.pragma('foreign_keys = ON');
   database.pragma('journal_mode = WAL');
   database.pragma('busy_timeout = 5000');

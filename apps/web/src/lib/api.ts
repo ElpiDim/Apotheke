@@ -36,6 +36,16 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+export async function apiBlob(path: string): Promise<Blob> {
+  const token = localStorage.getItem('peanut-auth-token');
+  const headers = new Headers();
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  if (!token && localStorage.getItem('peanut-local-mode') === '1') headers.set('X-Peanut-Local-Mode', '1');
+  const response = await fetch(`/api${path}`, { headers });
+  if (!response.ok) throw await parseError(response);
+  return response.blob();
+}
+
 export function jsonRequest(method: 'POST' | 'PATCH', body: unknown): RequestInit {
   return {
     method,

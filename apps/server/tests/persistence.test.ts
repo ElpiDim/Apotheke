@@ -49,6 +49,7 @@ describe('local knowledge persistence', () => {
     expect(search(database, 'rabbit')[0]?.entityId).toBe(note.id);
     expect(search(database, 'RABBIT')[0]?.entityId).toBe(note.id);
     expect(search(database, 'Altenar AND integration')[0]?.entityId).toBe(note.id);
+    expect(search(database, 'Alten').some((result) => result.entityType === 'category' && result.title === 'Altenar')).toBe(true);
 
     deleteNote(database, note.id);
     expect(search(database, 'RabbitMQ')).toHaveLength(0);
@@ -75,6 +76,17 @@ describe('local knowledge persistence', () => {
     expect(answer.answer).toContain('subtract funds');
     expect(answer.answer).toBe('Debit transactions subtract funds from the player balance.');
     expect(answer.sources[0]?.entityId).toBe(document.id);
+  });
+
+  it('searches Greek text without caring about case, accents or full words', () => {
+    const note = createNote(database, {
+      title: 'Δικτυακή Ασφάλεια',
+      content: 'Μέθοδοι προστασίας πληροφοριών.',
+      category: null,
+      tags: [],
+    });
+    expect(search(database, 'δικτυ')[0]?.entityId).toBe(note.id);
+    expect(search(database, 'ΔΙΚΤΥΑΚΗ')[0]?.entityId).toBe(note.id);
   });
 
   it('registers, authenticates and closes a local account session', () => {

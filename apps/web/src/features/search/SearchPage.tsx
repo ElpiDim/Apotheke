@@ -1,10 +1,11 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import type { SearchResult } from '@apotheke/contracts';
-import { ArrowUpRight, FileText, Image as ImageIcon, PlugZap, Search, Sparkles, StickyNote } from 'lucide-react';
+import { ArrowUpRight, FileText, FolderOpen, Image as ImageIcon, PlugZap, Search, Sparkles, StickyNote } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Badge } from '../../components/Badge';
 import { EmptyState } from '../../components/EmptyState';
 import { PageHeader } from '../../components/PageHeader';
+import { ApiImage } from '../../components/ApiImage';
 import { api, ApiError } from '../../lib/api';
 import { formatDate } from '../../lib/format';
 
@@ -15,6 +16,22 @@ export function SearchPage() {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<SearchFilter>('all');
+
+  const counts = useMemo(() => ({
+    all: results.length,
+    documents: results.filter((result) => result.entityType === 'document' && !result.mimeType?.startsWith('image/')).length,
+    images: results.filter((result) => result.entityType === 'document' && result.mimeType?.startsWith('image/')).length,
+    notes: results.filter((result) => result.entityType === 'note').length,
+    integrations: results.filter((result) => result.entityType === 'integration').length,
+    categories: results.filter((result) => result.entityType === 'category').length,
+  }), [results]);
+  const visibleResults = useMemo(() => results.filter((result) => filter === 'all'
+    || filter === 'documents' && result.entityType === 'document' && !result.mimeType?.startsWith('image/')
+    || filter === 'images' && result.entityType === 'document' && Boolean(result.mimeType?.startsWith('image/'))
+    || filter === 'notes' && result.entityType === 'note'
+    || filter === 'integrations' && result.entityType === 'integration'
+    || filter === 'categories' && result.entityType === 'category'), [filter, results]);
 
   useEffect(() => {
     setInput(query);
@@ -64,16 +81,19 @@ export function SearchPage() {
       {query && !loading && !error && (
         <div className="mt-8">
           <div className="mb-4 text-xs font-medium text-violet-400">{results.length} {results.length === 1 ? 'result' : 'results'} for <span className="font-semibold text-violet-700 dark:text-violet-200">“{query}”</span></div>
+          <div className="mb-5 flex flex-wrap gap-2">{searchFilters.map((item) => <button key={item.id} type="button" onClick={() => setFilter(item.id)} className={`rounded-full border px-3 py-2 text-[10px] font-bold transition ${filter === item.id ? 'border-violet-600 bg-violet-600 text-white shadow-sm' : 'border-violet-100 bg-white text-violet-500 hover:border-violet-300 dark:border-violet-800 dark:bg-[#211b35] dark:text-violet-300'}`}>{item.label} <span className={`ml-1 ${filter === item.id ? 'text-violet-200' : 'text-violet-300'}`}>{counts[item.id]}</span></button>)}</div>
           {results.length === 0 ? (
             <EmptyState icon={Search} title="No matches" description="Try fewer terms, an OR query, or remove a filter word." />
+          ) : visibleResults.length === 0 ? (
+            <EmptyState icon={Search} title={`No ${filter} matches`} description="Choose another filter to see the remaining search results." />
           ) : (
             <div className="max-w-5xl space-y-4">
-              {results.map((result) => (
+              {visibleResults.map((result) => (
                 <article key={`${result.entityType}-${result.entityId}`} className="rounded-2xl border border-violet-100 bg-white px-5 py-5 shadow-[0_6px_20px_rgba(82,65,168,0.05)] transition hover:border-violet-200 hover:shadow-[0_10px_26px_rgba(82,65,168,0.09)] dark:border-violet-800 dark:bg-[#211b35] dark:hover:border-violet-600">
-                  {result.mimeType?.startsWith('image/') && <Link to={`/documents/${result.entityId}?q=${encodeURIComponent(query)}`} className="mb-5 block h-52 overflow-hidden rounded-xl bg-violet-50 dark:bg-violet-950"><img src={`/api/documents/${result.entityId}/file`} alt={result.title} className="h-full w-full object-contain transition duration-300 hover:scale-[1.02]" /></Link>}
+                  {result.mimeType?.startsWith('image/') && <Link to={`/documents/${result.entityId}?q=${encodeURIComponent(query)}`} className="mb-5 block h-52 overflow-hidden rounded-xl bg-violet-50 dark:bg-violet-950"><ApiImage path={`/documents/${result.entityId}/file`} alt={result.title} className="h-full w-full object-contain transition duration-300 hover:scale-[1.02]" /></Link>}
                   <div className="flex items-start gap-3">
-                    <div className={`mt-0.5 rounded-xl p-2.5 ${result.entityType === 'document' ? 'bg-violet-100 text-violet-600 dark:bg-violet-900 dark:text-violet-300' : result.entityType === 'note' ? 'bg-amber-50 text-amber-500 dark:bg-amber-950' : 'bg-teal-50 text-teal-600 dark:bg-teal-950'}`}>
-                      {result.mimeType?.startsWith('image/') ? <ImageIcon size={15} /> : result.entityType === 'document' ? <FileText size={15} /> : result.entityType === 'note' ? <StickyNote size={15} /> : <PlugZap size={15} />}
+                    <div className={`mt-0.5 rounded-xl p-2.5 ${result.entityType === 'document' ? 'bg-violet-100 text-violet-600 dark:bg-violet-900 dark:text-violet-300' : result.entityType === 'note' ? 'bg-amber-50 text-amber-500 dark:bg-amber-950' : result.entityType === 'category' ? 'bg-orange-50 text-orange-500 dark:bg-orange-950' : 'bg-teal-50 text-teal-600 dark:bg-teal-950'}`}>
+                      {result.mimeType?.startsWith('image/') ? <ImageIcon size={15} /> : result.entityType === 'document' ? <FileText size={15} /> : result.entityType === 'note' ? <StickyNote size={15} /> : result.entityType === 'category' ? <FolderOpen size={15} /> : <PlugZap size={15} />}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
@@ -103,6 +123,16 @@ export function SearchPage() {
   );
 }
 
+type SearchFilter = 'all' | 'documents' | 'images' | 'notes' | 'integrations' | 'categories';
+const searchFilters: { id: SearchFilter; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'documents', label: 'Documents' },
+  { id: 'images', label: 'Images' },
+  { id: 'notes', label: 'Notes' },
+  { id: 'integrations', label: 'Integrations' },
+  { id: 'categories', label: 'Categories' },
+];
+
 function HighlightedSnippet({ snippet }: { snippet: string }) {
   if (!snippet) return <>Match found in the title, category, tags or other metadata.</>;
   const parts = snippet.split(/(\[\[\[PINIT_MATCH\]\]\][\s\S]*?\[\[\[\/PINIT_MATCH\]\]\])/g);
@@ -116,6 +146,8 @@ function ResultLink({ result, query }: { result: SearchResult; query: string }) 
     ? `/documents/${result.entityId}?q=${encodeURIComponent(query)}`
     : result.entityType === 'integration' && result.integrationFolderId
       ? `/integrations?folder=${result.integrationFolderId}`
-      : '/notes';
+      : result.entityType === 'category'
+        ? `/categories/${result.entityId}`
+        : '/notes';
   return <Link to={target} className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-coral-600 hover:text-coral-700 hover:underline">Open {result.entityType} <ArrowUpRight size={13} /></Link>;
 }

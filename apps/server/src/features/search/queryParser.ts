@@ -41,7 +41,8 @@ function tokenize(input: string): Token[] {
 }
 
 function quoteTerm(value: string, exact: boolean): string {
-  const quoted = `"${value.replaceAll('"', '""')}"`;
+  const normalized = value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase();
+  const quoted = `"${normalized.replaceAll('"', '""')}"`;
   return exact ? quoted : `${quoted}*`;
 }
 

@@ -15,7 +15,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   async function check() {
     setChecking(true);
     try {
-      const status = await api<{ configured: boolean }>('/auth/status');
+      const status = await api<{ configured: boolean; user: AuthUser | null }>('/auth/status');
       setConfigured(status.configured);
       const usingLocalMode = localStorage.getItem('peanut-local-mode') === '1';
       setLocalMode(usingLocalMode);
@@ -23,10 +23,10 @@ export function AuthGate({ children }: { children: ReactNode }) {
         setUser(null);
         return;
       }
-      if (localStorage.getItem(tokenKey)) {
-        const result = await api<{ user: AuthUser }>('/auth/me');
-        setUser(result.user);
+      if (localStorage.getItem(tokenKey) && status.user) {
+        setUser(status.user);
       } else {
+        localStorage.removeItem(tokenKey);
         localStorage.setItem('peanut-local-mode', '1');
         setLocalMode(true);
         setUser(null);
