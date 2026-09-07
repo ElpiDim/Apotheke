@@ -254,4 +254,11 @@ export const migrations: readonly Migration[] = [
       SET metadata = metadata || ' ' || normalize_search(title || ' ' || content || ' ' || metadata);
     `,
   },
+  {
+    id: 13,
+    name: 'remove_abandoned_local_authentication',
+    sql: `
+      DROP TABLE IF EXISTS users;
+    `,
+  },
 ];

@@ -21,7 +21,6 @@ import {
 import { answerQuestion, search } from '../src/features/search/searchService.js';
 import { createTask, deleteTask, listTasks, updateTask } from '../src/features/tasks/taskRepository.js';
 import { createVaultEntry, deleteVaultEntry, getVaultKey, listVaultEntries, lockVault, setupVault, unlockVault, updateVaultEntry, vaultConfigured } from '../src/features/vault/vaultService.js';
-import { authConfigured, login, logout, register, userForToken } from '../src/features/auth/authService.js';
 import { deleteCategory, listCategories } from '../src/features/categories/taxonomyRepository.js';
 
 describe('local knowledge persistence', () => {
@@ -100,15 +99,9 @@ describe('local knowledge persistence', () => {
     expect(search(database, 'Temporary').some((result) => result.entityType === 'category')).toBe(false);
   });
 
-  it('registers, authenticates and closes a local account session', () => {
-    expect(authConfigured(database)).toBe(false);
-    const created = register(database, { name: 'Peanut Owner', email: 'owner@example.com', password: 'a-secure-password' });
-    expect(authConfigured(database)).toBe(true);
-    expect(userForToken(database, created.token).email).toBe('owner@example.com');
-    expect(login(database, { email: 'OWNER@example.com', password: 'a-secure-password' }).user.name).toBe('Peanut Owner');
-    expect(() => login(database, { email: 'owner@example.com', password: 'wrong-password' })).toThrow('Incorrect email or password.');
-    logout(created.token);
-    expect(() => userForToken(database, created.token)).toThrow('Please sign in to Peanut.');
+  it('does not keep the abandoned local authentication table', () => {
+    const table = database.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'users'").get();
+    expect(table).toBeUndefined();
   });
 
   it('indexes image titles and filenames without requiring extracted text', () => {
