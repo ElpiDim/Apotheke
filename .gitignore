@@ -3,6 +3,8 @@ dist/
 .DS_Store
 *.log
 .env
+.dev.vars
+.wrangler/
 
 # Peanut's database and imported documents are private local data.
 data/*

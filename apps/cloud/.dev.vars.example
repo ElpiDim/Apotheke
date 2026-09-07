@@ -1,0 +1,2 @@
+# Copy to .dev.vars for local cloud development. Never commit .dev.vars.
+BETTER_AUTH_SECRET=replace-with-at-least-32-random-characters

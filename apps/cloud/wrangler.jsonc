@@ -1,0 +1,19 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "peanut-api-staging",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-07",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "BETTER_AUTH_URL": "http://localhost:8787",
+    "APP_ORIGIN": "http://localhost:5173"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "peanut-staging",
+      "database_id": "6ab77636-57b2-490c-9776-a83ce8393074",
+      "migrations_dir": "migrations"
+    }
+  ]
+}

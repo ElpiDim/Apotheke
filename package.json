@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "npm run build -w @peanut/contracts && concurrently -k -n contracts,server,web -c blue,magenta,green \"npm run dev -w @peanut/contracts\" \"npm run dev -w @peanut/server\" \"npm run dev -w @peanut/web\"",
     "build": "npm run build -w @peanut/contracts && npm run build -w @peanut/server && npm run build -w @peanut/web",
-    "typecheck": "npm run build -w @peanut/contracts && npm run typecheck -w @peanut/server && npm run typecheck -w @peanut/web",
+    "typecheck": "npm run build -w @peanut/contracts && npm run typecheck -w @peanut/server && npm run typecheck -w @peanut/web && npm run typecheck -w @peanut/cloud",
     "test": "npm run test -w @peanut/server",
     "check": "npm run typecheck && npm run test && npm run build"
   },
