@@ -193,19 +193,30 @@ function TaskNotifications() {
   const navigate = useNavigate();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [open, setOpen] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     let active = true;
     const load = () => api<{ tasks: Task[] }>('/tasks').then((result) => { if (active) setTasks(result.tasks); }).catch(() => undefined);
     void load();
-    const timer = window.setInterval(() => void load(), 15_000);
+    const refreshTimer = window.setInterval(() => void load(), 10 * 60_000);
+    const clockTimer = window.setInterval(() => setNow(Date.now()), 60_000);
     const unsubscribe = onWorkspaceChange((resources) => { if (resources.includes('tasks')) void load(); });
-    const refreshOnFocus = () => void load();
+    const refreshOnFocus = () => { setNow(Date.now()); void load(); };
+    const refreshWhenVisible = () => { if (document.visibilityState === 'visible') refreshOnFocus(); };
     window.addEventListener('focus', refreshOnFocus);
-    return () => { active = false; window.clearInterval(timer); unsubscribe(); window.removeEventListener('focus', refreshOnFocus); };
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    return () => {
+      active = false;
+      window.clearInterval(refreshTimer);
+      window.clearInterval(clockTimer);
+      unsubscribe();
+      window.removeEventListener('focus', refreshOnFocus);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
   }, []);
 
-  const today = taskDay(new Date().toISOString());
+  const today = taskDay(new Date(now).toISOString());
   const reminders = tasks.filter((task) => !task.completedAt && task.dueAt && taskDay(task.dueAt) <= today);
   const overdue = reminders.filter((task) => task.dueAt && taskDay(task.dueAt) < today);
   const dueToday = reminders.filter((task) => task.dueAt && taskDay(task.dueAt) === today);
