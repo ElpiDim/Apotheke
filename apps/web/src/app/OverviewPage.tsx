@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { DocumentRecord, Note } from '@apotheke/contracts';
+import type { DocumentRecord, Note } from '@peanut/contracts';
 import { BookOpen, ChevronRight, FileText, Library, Search, Sparkles, Star, StickyNote } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';

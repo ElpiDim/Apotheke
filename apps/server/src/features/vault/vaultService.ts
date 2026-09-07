@@ -1,6 +1,6 @@
 import { createCipheriv, createDecipheriv, randomBytes, randomUUID, scryptSync } from 'node:crypto';
-import type { CreateVaultEntryInput, UpdateVaultEntryInput, VaultEntry } from '@apotheke/contracts';
-import type { ApothekeDatabase } from '../../database/database.js';
+import type { CreateVaultEntryInput, UpdateVaultEntryInput, VaultEntry } from '@peanut/contracts';
+import type { PeanutDatabase } from '../../database/database.js';
 import { AppError } from '../../middleware/errors.js';
 
 const algorithm = 'aes-256-gcm';
@@ -32,11 +32,11 @@ function decrypt(key: Buffer, value: EncryptedValue): string {
   }
 }
 
-export function vaultConfigured(database: ApothekeDatabase): boolean {
+export function vaultConfigured(database: PeanutDatabase): boolean {
   return Boolean(database.prepare('SELECT 1 FROM vault_settings WHERE id = 1').get());
 }
 
-export function setupVault(database: ApothekeDatabase, password: string): string {
+export function setupVault(database: PeanutDatabase, password: string): string {
   if (vaultConfigured(database)) throw new AppError(409, 'The password vault is already configured.', 'VAULT_ALREADY_CONFIGURED');
   const salt = randomBytes(16);
   const key = deriveKey(password, salt);
@@ -46,7 +46,7 @@ export function setupVault(database: ApothekeDatabase, password: string): string
   return createSession(key);
 }
 
-export function unlockVault(database: ApothekeDatabase, password: string): string {
+export function unlockVault(database: PeanutDatabase, password: string): string {
   const settings = database.prepare(`SELECT salt, verifier_iv AS iv, verifier_ciphertext AS ciphertext, verifier_tag AS tag FROM vault_settings WHERE id = 1`)
     .get() as ({ salt: string } & EncryptedValue) | undefined;
   if (!settings) throw new AppError(409, 'Set up the password vault first.', 'VAULT_NOT_CONFIGURED');
@@ -82,11 +82,11 @@ function hydrate(row: VaultRow, key: Buffer): VaultEntry {
 
 const selectEntries = `SELECT id, label, payload_iv AS payloadIv, payload_ciphertext AS payloadCiphertext, payload_tag AS payloadTag, created_at AS createdAt, updated_at AS updatedAt FROM vault_entries`;
 
-export function listVaultEntries(database: ApothekeDatabase, key: Buffer): VaultEntry[] {
+export function listVaultEntries(database: PeanutDatabase, key: Buffer): VaultEntry[] {
   return (database.prepare(`${selectEntries} ORDER BY label COLLATE NOCASE`).all() as VaultRow[]).map((row) => hydrate(row, key));
 }
 
-export function createVaultEntry(database: ApothekeDatabase, key: Buffer, input: CreateVaultEntryInput): VaultEntry {
+export function createVaultEntry(database: PeanutDatabase, key: Buffer, input: CreateVaultEntryInput): VaultEntry {
   const id = randomUUID();
   const now = new Date().toISOString();
   const encrypted = encrypt(key, JSON.stringify({ username: input.username, password: input.password, url: input.url, notes: input.notes }));
@@ -95,7 +95,7 @@ export function createVaultEntry(database: ApothekeDatabase, key: Buffer, input:
   return listVaultEntries(database, key).find((entry) => entry.id === id)!;
 }
 
-export function updateVaultEntry(database: ApothekeDatabase, key: Buffer, id: string, input: UpdateVaultEntryInput): VaultEntry {
+export function updateVaultEntry(database: PeanutDatabase, key: Buffer, id: string, input: UpdateVaultEntryInput): VaultEntry {
   const current = listVaultEntries(database, key).find((entry) => entry.id === id);
   if (!current) throw new AppError(404, 'Password entry not found.', 'VAULT_ENTRY_NOT_FOUND');
   const next = { label: input.label ?? current.label, username: input.username ?? current.username, password: input.password ?? current.password, url: input.url ?? current.url, notes: input.notes ?? current.notes };
@@ -105,7 +105,7 @@ export function updateVaultEntry(database: ApothekeDatabase, key: Buffer, id: st
   return listVaultEntries(database, key).find((entry) => entry.id === id)!;
 }
 
-export function deleteVaultEntry(database: ApothekeDatabase, id: string): void {
+export function deleteVaultEntry(database: PeanutDatabase, id: string): void {
   const result = database.prepare('DELETE FROM vault_entries WHERE id = ?').run(id);
   if (result.changes === 0) throw new AppError(404, 'Password entry not found.', 'VAULT_ENTRY_NOT_FOUND');
 }

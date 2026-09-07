@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import type { DocumentRecord, ImportDocumentFields } from '@apotheke/contracts';
-import type { ApothekeDatabase } from '../../database/database.js';
+import type { DocumentRecord, ImportDocumentFields } from '@peanut/contracts';
+import type { PeanutDatabase } from '../../database/database.js';
 import { ensureCategory, ensureTags } from '../categories/taxonomyRepository.js';
 import { reindexDocument, removeFromIndex } from '../search/indexer.js';
 import { AppError } from '../../middleware/errors.js';
@@ -54,7 +54,7 @@ const selectDocuments = `
   LEFT JOIN categories c ON c.id = d.category_id
 `;
 
-function hydrateDocument(database: ApothekeDatabase, row: DocumentRow): DocumentRecord {
+function hydrateDocument(database: PeanutDatabase, row: DocumentRow): DocumentRecord {
   const tags = database
     .prepare(
       `SELECT t.id, t.name
@@ -85,7 +85,7 @@ function hydrateDocument(database: ApothekeDatabase, row: DocumentRow): Document
   };
 }
 
-export function listDocuments(database: ApothekeDatabase): DocumentRecord[] {
+export function listDocuments(database: PeanutDatabase): DocumentRecord[] {
   const rows = database
     .prepare(`${selectDocuments} ORDER BY d.updated_at DESC`)
     .all() as DocumentRow[];
@@ -98,14 +98,14 @@ export interface DocumentViewerRecord {
   extractedText: string;
 }
 
-export function findDuplicateDocument(database: ApothekeDatabase, contentHash: string, originalFilename: string, fileSize: number): DocumentRecord | null {
+export function findDuplicateDocument(database: PeanutDatabase, contentHash: string, originalFilename: string, fileSize: number): DocumentRecord | null {
   const row = database
     .prepare(`${selectDocuments} WHERE v.content_hash = ? OR (v.content_hash IS NULL AND v.original_filename = ? COLLATE NOCASE AND v.file_size = ?) LIMIT 1`)
     .get(contentHash, originalFilename, fileSize) as DocumentRow | undefined;
   return row ? hydrateDocument(database, row) : null;
 }
 
-export function getDocumentForViewer(database: ApothekeDatabase, documentId: string): DocumentViewerRecord {
+export function getDocumentForViewer(database: PeanutDatabase, documentId: string): DocumentViewerRecord {
   const row = database
     .prepare(`${selectDocuments} WHERE d.id = ?`)
     .get(documentId) as DocumentRow | undefined;
@@ -121,7 +121,7 @@ export function getDocumentForViewer(database: ApothekeDatabase, documentId: str
   return { document: hydrateDocument(database, row), ...version };
 }
 
-export function deleteDocument(database: ApothekeDatabase, documentId: string): string {
+export function deleteDocument(database: PeanutDatabase, documentId: string): string {
   const { storedFilename } = getDocumentForViewer(database, documentId);
   database.transaction(() => {
     removeFromIndex(database, 'document', documentId);
@@ -132,7 +132,7 @@ export function deleteDocument(database: ApothekeDatabase, documentId: string): 
 }
 
 export function createDocument(
-  database: ApothekeDatabase,
+  database: PeanutDatabase,
   fields: ImportDocumentFields,
   storedImport: StoredImport,
 ): DocumentRecord {

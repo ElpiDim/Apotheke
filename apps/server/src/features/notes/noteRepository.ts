@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import type { CreateNoteInput, Note, UpdateNoteInput } from '@apotheke/contracts';
-import type { ApothekeDatabase } from '../../database/database.js';
+import type { CreateNoteInput, Note, UpdateNoteInput } from '@peanut/contracts';
+import type { PeanutDatabase } from '../../database/database.js';
 import { AppError } from '../../middleware/errors.js';
 import { ensureCategory, ensureTags } from '../categories/taxonomyRepository.js';
 import { reindexNote, removeFromIndex } from '../search/indexer.js';
@@ -21,7 +21,7 @@ interface TagRow {
   name: string;
 }
 
-function hydrateNote(database: ApothekeDatabase, row: NoteRow): Note {
+function hydrateNote(database: PeanutDatabase, row: NoteRow): Note {
   const tags = database
     .prepare(
       `SELECT t.id, t.name
@@ -58,14 +58,14 @@ const selectNotes = `
   LEFT JOIN categories c ON c.id = n.category_id
 `;
 
-export function listNotes(database: ApothekeDatabase): Note[] {
+export function listNotes(database: PeanutDatabase): Note[] {
   const rows = database
     .prepare(`${selectNotes} ORDER BY n.updated_at DESC`)
     .all() as NoteRow[];
   return rows.map((row) => hydrateNote(database, row));
 }
 
-export function getNote(database: ApothekeDatabase, id: string): Note {
+export function getNote(database: PeanutDatabase, id: string): Note {
   const row = database
     .prepare(`${selectNotes} WHERE n.id = ?`)
     .get(id) as NoteRow | undefined;
@@ -73,14 +73,14 @@ export function getNote(database: ApothekeDatabase, id: string): Note {
   return hydrateNote(database, row);
 }
 
-function replaceNoteTags(database: ApothekeDatabase, noteId: string, names: readonly string[]): void {
+function replaceNoteTags(database: PeanutDatabase, noteId: string, names: readonly string[]): void {
   const tagIds = ensureTags(database, names);
   database.prepare('DELETE FROM note_tags WHERE note_id = ?').run(noteId);
   const insert = database.prepare('INSERT INTO note_tags (note_id, tag_id) VALUES (?, ?)');
   for (const tagId of tagIds) insert.run(noteId, tagId);
 }
 
-export function createNote(database: ApothekeDatabase, input: CreateNoteInput): Note {
+export function createNote(database: PeanutDatabase, input: CreateNoteInput): Note {
   const id = randomUUID();
   const now = new Date().toISOString();
 
@@ -99,7 +99,7 @@ export function createNote(database: ApothekeDatabase, input: CreateNoteInput): 
   return getNote(database, id);
 }
 
-export function updateNote(database: ApothekeDatabase, id: string, input: UpdateNoteInput): Note {
+export function updateNote(database: PeanutDatabase, id: string, input: UpdateNoteInput): Note {
   const current = getNote(database, id);
   const next = {
     title: input.title ?? current.title,
@@ -124,7 +124,7 @@ export function updateNote(database: ApothekeDatabase, id: string, input: Update
   return getNote(database, id);
 }
 
-export function deleteNote(database: ApothekeDatabase, id: string): void {
+export function deleteNote(database: PeanutDatabase, id: string): void {
   getNote(database, id);
   database.transaction(() => {
     removeFromIndex(database, 'note', id);

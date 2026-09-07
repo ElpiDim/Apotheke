@@ -4,6 +4,6 @@ dist/
 *.log
 .env
 
-# Apotheke's database and imported documents are private local data.
+# Peanut's database and imported documents are private local data.
 data/*
 !data/.gitkeep

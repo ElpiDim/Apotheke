@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { openDatabase, type ApothekeDatabase } from '../src/database/database.js';
+import { openDatabase, type PeanutDatabase } from '../src/database/database.js';
 import { createDocument, deleteDocument, listDocuments } from '../src/features/documents/documentRepository.js';
 import { createNote, deleteNote } from '../src/features/notes/noteRepository.js';
 import {
@@ -22,13 +22,14 @@ import { answerQuestion, search } from '../src/features/search/searchService.js'
 import { createTask, deleteTask, listTasks, updateTask } from '../src/features/tasks/taskRepository.js';
 import { createVaultEntry, deleteVaultEntry, getVaultKey, listVaultEntries, lockVault, setupVault, unlockVault, updateVaultEntry, vaultConfigured } from '../src/features/vault/vaultService.js';
 import { authConfigured, login, logout, register, userForToken } from '../src/features/auth/authService.js';
+import { deleteCategory, listCategories } from '../src/features/categories/taxonomyRepository.js';
 
 describe('local knowledge persistence', () => {
   let directory: string;
-  let database: ApothekeDatabase;
+  let database: PeanutDatabase;
 
   beforeEach(() => {
-    directory = fs.mkdtempSync(path.join(os.tmpdir(), 'apotheke-test-'));
+    directory = fs.mkdtempSync(path.join(os.tmpdir(), 'peanut-test-'));
     database = openDatabase(path.join(directory, 'test.sqlite'));
   });
 
@@ -87,6 +88,16 @@ describe('local knowledge persistence', () => {
     });
     expect(search(database, 'δικτυ')[0]?.entityId).toBe(note.id);
     expect(search(database, 'ΔΙΚΤΥΑΚΗ')[0]?.entityId).toBe(note.id);
+  });
+
+  it('deletes a category without deleting its notes', () => {
+    const note = createNote(database, { title: 'Keep me', content: 'Still here', category: 'Temporary', tags: [] });
+    const category = listCategories(database).find((item) => item.name === 'Temporary');
+    expect(category).toBeDefined();
+    deleteCategory(database, category!.id);
+    expect(listCategories(database).some((item) => item.id === category!.id)).toBe(false);
+    expect(database.prepare('SELECT category_id AS categoryId FROM notes WHERE id = ?').get(note.id)).toEqual({ categoryId: null });
+    expect(search(database, 'Temporary').some((result) => result.entityType === 'category')).toBe(false);
   });
 
   it('registers, authenticates and closes a local account session', () => {

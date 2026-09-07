@@ -1,5 +1,5 @@
-import type { ExtractiveAnswerResponse, SearchResult } from '@apotheke/contracts';
-import type { ApothekeDatabase } from '../../database/database.js';
+import type { ExtractiveAnswerResponse, SearchResult } from '@peanut/contracts';
+import type { PeanutDatabase } from '../../database/database.js';
 import { buildFtsQuery } from './queryParser.js';
 
 interface MatchRow {
@@ -19,7 +19,7 @@ interface DetailsRow {
   integrationFolderId: string | null;
 }
 
-export function search(database: ApothekeDatabase, rawQuery: string): SearchResult[] {
+export function search(database: PeanutDatabase, rawQuery: string): SearchResult[] {
   const ftsQuery = buildFtsQuery(rawQuery);
   const matches = database
     .prepare(
@@ -136,7 +136,7 @@ function normalizeForMatch(value: string): string {
     .toLocaleLowerCase();
 }
 
-function sourceContent(database: ApothekeDatabase, match: SearchResult): string {
+function sourceContent(database: PeanutDatabase, match: SearchResult): string {
   if (match.entityType === 'document') {
     const row = database.prepare(
       `SELECT v.extracted_text AS content
@@ -183,7 +183,7 @@ function completePassage(content: string, keywords: string[], fallback: string):
   return next ? `${best} ${next}` : best;
 }
 
-export function answerQuestion(database: ApothekeDatabase, question: string): ExtractiveAnswerResponse {
+export function answerQuestion(database: PeanutDatabase, question: string): ExtractiveAnswerResponse {
   const keywords = questionKeywords(question);
   if (keywords.length === 0) return { question, answer: null, sources: [] };
 

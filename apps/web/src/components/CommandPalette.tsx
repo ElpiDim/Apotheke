@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { SearchResult } from '@apotheke/contracts';
+import type { SearchResult } from '@peanut/contracts';
 import { FilePlus2, FileText, Image, LayoutDashboard, ListTodo, PlugZap, Search, StickyNote, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';

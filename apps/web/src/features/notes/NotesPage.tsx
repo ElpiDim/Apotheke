@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { CreateNoteInput, Note } from '@apotheke/contracts';
+import type { CreateNoteInput, Note } from '@peanut/contracts';
 import { Clock3, Plus, Save, Sparkles, Star, StickyNote, Trash2, X } from 'lucide-react';
 import { EmptyState } from '../../components/EmptyState';
 import { api, ApiError, jsonRequest } from '../../lib/api';

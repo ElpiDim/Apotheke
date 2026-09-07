@@ -9,8 +9,8 @@ import type {
   UpdateIntegrationSpaceInput,
   UpdateIntegrationEntryInput,
   UpdateIntegrationFolderInput,
-} from '@apotheke/contracts';
-import type { ApothekeDatabase } from '../../database/database.js';
+} from '@peanut/contracts';
+import type { PeanutDatabase } from '../../database/database.js';
 import { AppError } from '../../middleware/errors.js';
 import { reindexIntegrationEntry, removeFromIndex } from '../search/indexer.js';
 
@@ -44,7 +44,7 @@ interface EntryRow {
   updatedAt: string;
 }
 
-export function listIntegrationFolders(database: ApothekeDatabase): IntegrationFolder[] {
+export function listIntegrationFolders(database: PeanutDatabase): IntegrationFolder[] {
   return database.prepare(`
     SELECT id, space_id AS spaceId, name, parent_id AS parentId, created_at AS createdAt, updated_at AS updatedAt
     FROM integration_folders
@@ -52,7 +52,7 @@ export function listIntegrationFolders(database: ApothekeDatabase): IntegrationF
   `).all() as FolderRow[];
 }
 
-export function listIntegrationSpaces(database: ApothekeDatabase): IntegrationSpace[] {
+export function listIntegrationSpaces(database: PeanutDatabase): IntegrationSpace[] {
   return database.prepare(`
     SELECT id, name, created_at AS createdAt, updated_at AS updatedAt
     FROM integration_spaces
@@ -60,13 +60,13 @@ export function listIntegrationSpaces(database: ApothekeDatabase): IntegrationSp
   `).all() as SpaceRow[];
 }
 
-function requireSpace(database: ApothekeDatabase, id: string): IntegrationSpace {
+function requireSpace(database: PeanutDatabase, id: string): IntegrationSpace {
   const space = listIntegrationSpaces(database).find((item) => item.id === id);
   if (!space) throw new AppError(404, 'Workspace section not found.', 'INTEGRATION_SPACE_NOT_FOUND');
   return space;
 }
 
-export function createIntegrationSpace(database: ApothekeDatabase, input: CreateIntegrationSpaceInput): IntegrationSpace {
+export function createIntegrationSpace(database: PeanutDatabase, input: CreateIntegrationSpaceInput): IntegrationSpace {
   const id = randomUUID();
   const now = new Date().toISOString();
   try {
@@ -78,7 +78,7 @@ export function createIntegrationSpace(database: ApothekeDatabase, input: Create
   return { id, name: input.name, createdAt: now, updatedAt: now };
 }
 
-export function updateIntegrationSpace(database: ApothekeDatabase, id: string, input: UpdateIntegrationSpaceInput): IntegrationSpace {
+export function updateIntegrationSpace(database: PeanutDatabase, id: string, input: UpdateIntegrationSpaceInput): IntegrationSpace {
   const current = requireSpace(database, id);
   const now = new Date().toISOString();
   try {
@@ -96,7 +96,7 @@ export function updateIntegrationSpace(database: ApothekeDatabase, id: string, i
   return { ...current, name: input.name ?? current.name, updatedAt: now };
 }
 
-export function deleteIntegrationSpace(database: ApothekeDatabase, id: string): void {
+export function deleteIntegrationSpace(database: PeanutDatabase, id: string): void {
   requireSpace(database, id);
   database.transaction(() => {
     const entryIds = database.prepare(`
@@ -110,7 +110,7 @@ export function deleteIntegrationSpace(database: ApothekeDatabase, id: string): 
   })();
 }
 
-export function listIntegrationEntries(database: ApothekeDatabase): IntegrationEntry[] {
+export function listIntegrationEntries(database: PeanutDatabase): IntegrationEntry[] {
   const rows = database.prepare(`
     SELECT id, folder_id AS folderId, title, description, url,
            original_filename AS originalFilename, stored_filename AS storedFilename,
@@ -137,14 +137,14 @@ function hydrateEntry(row: EntryRow): IntegrationEntry {
   };
 }
 
-function requireFolder(database: ApothekeDatabase, id: string): void {
+function requireFolder(database: PeanutDatabase, id: string): void {
   if (!database.prepare('SELECT 1 FROM integration_folders WHERE id = ?').get(id)) {
     throw new AppError(404, 'Integration folder not found.', 'INTEGRATION_FOLDER_NOT_FOUND');
   }
 }
 
 export function createIntegrationFolder(
-  database: ApothekeDatabase,
+  database: PeanutDatabase,
   input: CreateIntegrationFolderInput,
 ): IntegrationFolder {
   requireSpace(database, input.spaceId);
@@ -163,7 +163,7 @@ export function createIntegrationFolder(
 }
 
 export function updateIntegrationFolder(
-  database: ApothekeDatabase,
+  database: PeanutDatabase,
   id: string,
   input: UpdateIntegrationFolderInput,
 ): IntegrationFolder {
@@ -200,7 +200,7 @@ export function updateIntegrationFolder(
   return updated;
 }
 
-export function deleteIntegrationFolder(database: ApothekeDatabase, id: string): void {
+export function deleteIntegrationFolder(database: PeanutDatabase, id: string): void {
   requireFolder(database, id);
   database.transaction(() => {
     const entryIds = database.prepare(`
@@ -217,7 +217,7 @@ export function deleteIntegrationFolder(database: ApothekeDatabase, id: string):
 }
 
 export function createIntegrationEntry(
-  database: ApothekeDatabase,
+  database: PeanutDatabase,
   input: CreateIntegrationEntryInput,
 ): IntegrationEntry {
   requireFolder(database, input.folderId);
@@ -232,7 +232,7 @@ export function createIntegrationEntry(
 }
 
 export function updateIntegrationEntry(
-  database: ApothekeDatabase,
+  database: PeanutDatabase,
   id: string,
   input: UpdateIntegrationEntryInput,
 ): IntegrationEntry {
@@ -265,7 +265,7 @@ export interface IntegrationPdfInput {
   fileSize: number;
 }
 
-export function createIntegrationPdf(database: ApothekeDatabase, input: IntegrationPdfInput): IntegrationEntry {
+export function createIntegrationPdf(database: PeanutDatabase, input: IntegrationPdfInput): IntegrationEntry {
   requireFolder(database, input.folderId);
   const id = randomUUID();
   const now = new Date().toISOString();
@@ -288,7 +288,7 @@ export function createIntegrationPdf(database: ApothekeDatabase, input: Integrat
   };
 }
 
-export function getIntegrationStoredFile(database: ApothekeDatabase, id: string): { storedFilename: string; originalFilename: string } {
+export function getIntegrationStoredFile(database: PeanutDatabase, id: string): { storedFilename: string; originalFilename: string } {
   const row = database.prepare(`
     SELECT stored_filename AS storedFilename, original_filename AS originalFilename
     FROM integration_entries WHERE id = ? AND stored_filename IS NOT NULL
@@ -297,7 +297,7 @@ export function getIntegrationStoredFile(database: ApothekeDatabase, id: string)
   return row;
 }
 
-export function listStoredFilesInFolderTree(database: ApothekeDatabase, folderId: string): string[] {
+export function listStoredFilesInFolderTree(database: PeanutDatabase, folderId: string): string[] {
   const rows = database.prepare(`
     WITH RECURSIVE folder_tree(id) AS (
       SELECT id FROM integration_folders WHERE id = ?
@@ -311,7 +311,7 @@ export function listStoredFilesInFolderTree(database: ApothekeDatabase, folderId
   return rows.map((row) => row.storedFilename);
 }
 
-export function listStoredFilesInSpace(database: ApothekeDatabase, spaceId: string): string[] {
+export function listStoredFilesInSpace(database: PeanutDatabase, spaceId: string): string[] {
   const rows = database.prepare(`
     SELECT e.stored_filename AS storedFilename
     FROM integration_entries e
@@ -321,7 +321,7 @@ export function listStoredFilesInSpace(database: ApothekeDatabase, spaceId: stri
   return rows.map((row) => row.storedFilename);
 }
 
-export function deleteIntegrationEntry(database: ApothekeDatabase, id: string): void {
+export function deleteIntegrationEntry(database: PeanutDatabase, id: string): void {
   const exists = database.prepare('SELECT 1 FROM integration_entries WHERE id = ?').get(id);
   if (!exists) {
     throw new AppError(404, 'Integration entry not found.', 'INTEGRATION_ENTRY_NOT_FOUND');

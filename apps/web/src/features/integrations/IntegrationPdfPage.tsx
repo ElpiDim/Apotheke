@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { IntegrationEntry } from '@apotheke/contracts';
+import type { IntegrationEntry } from '@peanut/contracts';
 import { ArrowLeft, Download, FileText, Maximize2, Minimize2 } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { api, apiBlob } from '../../lib/api';

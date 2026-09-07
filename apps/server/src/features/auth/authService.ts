@@ -1,6 +1,6 @@
 import { randomBytes, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
-import type { AuthUser, LoginInput, RegisterInput } from '@apotheke/contracts';
-import type { ApothekeDatabase } from '../../database/database.js';
+import type { AuthUser, LoginInput, RegisterInput } from '@peanut/contracts';
+import type { PeanutDatabase } from '../../database/database.js';
 import { AppError } from '../../middleware/errors.js';
 
 interface UserRow extends AuthUser {
@@ -24,11 +24,11 @@ function createSession(userId: string): string {
   return token;
 }
 
-export function authConfigured(database: ApothekeDatabase): boolean {
+export function authConfigured(database: PeanutDatabase): boolean {
   return Boolean(database.prepare('SELECT 1 FROM users LIMIT 1').get());
 }
 
-export function register(database: ApothekeDatabase, input: RegisterInput): { user: AuthUser; token: string } {
+export function register(database: PeanutDatabase, input: RegisterInput): { user: AuthUser; token: string } {
   if (authConfigured(database)) throw new AppError(409, 'A Peanut account already exists on this installation.', 'ACCOUNT_ALREADY_EXISTS');
   const now = new Date().toISOString();
   const id = randomUUID();
@@ -41,7 +41,7 @@ export function register(database: ApothekeDatabase, input: RegisterInput): { us
   return { user, token: createSession(id) };
 }
 
-export function login(database: ApothekeDatabase, input: LoginInput): { user: AuthUser; token: string } {
+export function login(database: PeanutDatabase, input: LoginInput): { user: AuthUser; token: string } {
   const row = database.prepare(`SELECT id, name, email, password_salt AS passwordSalt, password_hash AS passwordHash
     FROM users WHERE email = ? COLLATE NOCASE`).get(input.email) as UserRow | undefined;
   if (!row) throw new AppError(401, 'Incorrect email or password.', 'INVALID_CREDENTIALS');
@@ -53,7 +53,7 @@ export function login(database: ApothekeDatabase, input: LoginInput): { user: Au
   return { user: publicUser(row), token: createSession(row.id) };
 }
 
-export function userForToken(database: ApothekeDatabase, token: string | undefined): AuthUser {
+export function userForToken(database: PeanutDatabase, token: string | undefined): AuthUser {
   const userId = token ? sessions.get(token) : undefined;
   if (!userId) throw new AppError(401, 'Please sign in to Peanut.', 'AUTH_REQUIRED');
   const row = database.prepare('SELECT id, name, email FROM users WHERE id = ?').get(userId) as AuthUser | undefined;

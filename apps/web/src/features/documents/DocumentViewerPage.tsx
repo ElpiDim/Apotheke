@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { DocumentRecord } from '@apotheke/contracts';
+import type { DocumentRecord } from '@peanut/contracts';
 import { ArrowLeft, Download, FileSearch, FileText, Image as ImageIcon, Tag, Trash2 } from 'lucide-react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api, apiBlob } from '../../lib/api';

@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from 'react';
-import type { ExtractiveAnswerResponse, ExtractiveAnswerSource } from '@apotheke/contracts';
+import { useEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import type { ExtractiveAnswerResponse, ExtractiveAnswerSource } from '@peanut/contracts';
 import { ArrowUpRight, BookOpen, ListTodo, Search, Sparkles, X } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
@@ -18,6 +18,60 @@ export function PiniAssistant() {
   const [response, setResponse] = useState<ExtractiveAnswerResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [position, setPosition] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('pini-position') ?? '') as { x?: number; y?: number };
+      if (Number.isFinite(saved.x) && Number.isFinite(saved.y)) return { x: saved.x!, y: saved.y! };
+    } catch { /* Use the default position. */ }
+    return { x: Math.max(12, window.innerWidth - 96), y: Math.max(12, window.innerHeight - 114) };
+  });
+  const floatingRef = useRef<HTMLDivElement | null>(null);
+  const drag = useRef<{ pointerId: number; offsetX: number; offsetY: number; startX: number; startY: number; x: number; y: number; moved: boolean } | null>(null);
+
+  useEffect(() => {
+    const keepInsideWindow = () => setPosition((current) => ({
+      x: Math.min(Math.max(8, current.x), Math.max(8, window.innerWidth - 80)),
+      y: Math.min(Math.max(8, current.y), Math.max(8, window.innerHeight - 98)),
+    }));
+    window.addEventListener('resize', keepInsideWindow);
+    return () => window.removeEventListener('resize', keepInsideWindow);
+  }, []);
+
+  function startDrag(event: ReactPointerEvent<HTMLButtonElement>) {
+    drag.current = { pointerId: event.pointerId, offsetX: event.clientX - position.x, offsetY: event.clientY - position.y, startX: event.clientX, startY: event.clientY, x: position.x, y: position.y, moved: false };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function moveDrag(event: ReactPointerEvent<HTMLButtonElement>) {
+    const active = drag.current;
+    if (!active || active.pointerId !== event.pointerId) return;
+    if (Math.hypot(event.clientX - active.startX, event.clientY - active.startY) > 4) active.moved = true;
+    if (!active.moved) return;
+    active.x = Math.min(Math.max(8, event.clientX - active.offsetX), Math.max(8, window.innerWidth - 80));
+    active.y = Math.min(Math.max(8, event.clientY - active.offsetY), Math.max(8, window.innerHeight - 98));
+    if (floatingRef.current) {
+      floatingRef.current.style.left = `${active.x}px`;
+      floatingRef.current.style.top = `${active.y}px`;
+    }
+  }
+
+  function finishDrag(event: ReactPointerEvent<HTMLButtonElement>) {
+    const active = drag.current;
+    if (!active || active.pointerId !== event.pointerId) return;
+    event.currentTarget.releasePointerCapture(event.pointerId);
+    drag.current = null;
+    if (!active.moved) {
+      setOpen(true);
+      return;
+    }
+    const nextPosition = { x: active.x, y: active.y };
+    setPosition(nextPosition);
+    localStorage.setItem('pini-position', JSON.stringify(nextPosition));
+  }
+
+  function cancelDrag() {
+    drag.current = null;
+  }
 
   async function search(event: FormEvent) {
     event.preventDefault();
@@ -38,7 +92,7 @@ export function PiniAssistant() {
   }
 
   return (
-    <div className="fixed bottom-4 right-4 z-40 sm:bottom-6 sm:right-6">
+    <div ref={floatingRef} className={open ? 'fixed bottom-4 right-4 z-40 sm:bottom-6 sm:right-6' : 'fixed z-40'} style={open ? undefined : { left: position.x, top: position.y }}>
       {open && (
         <section className="flex max-h-[min(560px,calc(100vh-8rem))] w-[min(370px,calc(100vw-2rem))] flex-col overflow-hidden rounded-[26px] border border-violet-200 bg-[#fffdf9] shadow-[0_24px_70px_rgba(47,25,91,0.25)] dark:border-violet-700 dark:bg-[#211b35]">
           <header className="relative shrink-0 overflow-hidden border-b border-violet-100 bg-gradient-to-br from-amber-50 via-[#fff8eb] to-violet-100 px-5 pb-4 pt-5 dark:border-violet-800 dark:from-violet-950 dark:via-[#29203f] dark:to-violet-900">
@@ -93,9 +147,9 @@ export function PiniAssistant() {
         </section>
       )}
 
-      {!open && <button onClick={() => setOpen(true)} aria-label="Open Pini assistant" className="group relative ml-auto flex h-[90px] w-[72px] items-end justify-center transition hover:-translate-y-1">
+      {!open && <button onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={finishDrag} onPointerCancel={cancelDrag} aria-label="Open or move Pini assistant" title="Click to open · drag to move" className="group relative ml-auto flex h-[90px] w-[72px] touch-none cursor-grab select-none items-end justify-center transition active:cursor-grabbing">
         <span className="absolute -left-24 top-2 rounded-full border border-violet-100 bg-white px-3 py-2 text-[11px] font-bold text-violet-800 opacity-0 shadow-md transition group-hover:opacity-100 dark:border-violet-700 dark:bg-violet-900 dark:text-white">Ask Pini</span>
-        <img src="/pini-mascot.png" alt="" className="max-h-[86px] w-auto drop-shadow-[0_9px_8px_rgba(69,35,104,0.22)] transition group-hover:scale-105" />
+        <img src="/pini-mascot.png" alt="" draggable={false} className="pointer-events-none max-h-[86px] w-auto select-none drop-shadow-[0_9px_8px_rgba(69,35,104,0.22)] transition group-hover:scale-105" />
         <span className="absolute right-0 top-1 h-2.5 w-2.5 rounded-full border-2 border-white bg-teal-400 dark:border-violet-900" />
       </button>}
     </div>

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import type { CreateTaskInput, Task, UpdateTaskInput } from '@apotheke/contracts';
-import type { ApothekeDatabase } from '../../database/database.js';
+import type { CreateTaskInput, Task, UpdateTaskInput } from '@peanut/contracts';
+import type { PeanutDatabase } from '../../database/database.js';
 import { AppError } from '../../middleware/errors.js';
 
 interface TaskRow {
@@ -19,19 +19,19 @@ const selectTasks = `
   FROM tasks
 `;
 
-export function listTasks(database: ApothekeDatabase): Task[] {
+export function listTasks(database: PeanutDatabase): Task[] {
   return database.prepare(`${selectTasks}
     ORDER BY completed_at IS NOT NULL, due_at IS NULL, due_at, created_at DESC
   `).all() as TaskRow[];
 }
 
-export function getTask(database: ApothekeDatabase, id: string): Task {
+export function getTask(database: PeanutDatabase, id: string): Task {
   const task = database.prepare(`${selectTasks} WHERE id = ?`).get(id) as TaskRow | undefined;
   if (!task) throw new AppError(404, 'Task not found.', 'TASK_NOT_FOUND');
   return task;
 }
 
-export function createTask(database: ApothekeDatabase, input: CreateTaskInput): Task {
+export function createTask(database: PeanutDatabase, input: CreateTaskInput): Task {
   const id = randomUUID();
   const now = new Date().toISOString();
   database.prepare(`
@@ -41,7 +41,7 @@ export function createTask(database: ApothekeDatabase, input: CreateTaskInput): 
   return getTask(database, id);
 }
 
-export function updateTask(database: ApothekeDatabase, id: string, input: UpdateTaskInput): Task {
+export function updateTask(database: PeanutDatabase, id: string, input: UpdateTaskInput): Task {
   const current = getTask(database, id);
   const completedAt = input.completed === undefined
     ? current.completedAt
@@ -60,7 +60,7 @@ export function updateTask(database: ApothekeDatabase, id: string, input: Update
   return getTask(database, id);
 }
 
-export function deleteTask(database: ApothekeDatabase, id: string): void {
+export function deleteTask(database: PeanutDatabase, id: string): void {
   const result = database.prepare('DELETE FROM tasks WHERE id = ?').run(id);
   if (result.changes === 0) throw new AppError(404, 'Task not found.', 'TASK_NOT_FOUND');
 }

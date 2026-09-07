@@ -1,10 +1,10 @@
-# Apotheke
+# Peanut
 
-Apotheke is a local-first personal knowledge system for technical documentation. It is designed as a long-lived product: strict TypeScript, explicit module boundaries, SQLite/FTS5 search, and original files stored on the local filesystem.
+Peanut is a playful, local-first personal workspace for documents, images, notes, tasks and organized knowledge. It uses strict TypeScript, explicit module boundaries, SQLite/FTS5 search and private file storage on the local filesystem.
 
-## Privacy contract
+## Privacy
 
-Version 1 makes no runtime network requests to third-party services. There is no AI integration, telemetry, analytics, cloud storage, or external CDN. The API binds to `127.0.0.1` by default. Installing npm packages is the only network-dependent setup step.
+Peanut is local-first. Its API binds to `127.0.0.1` by default, workspace metadata lives in SQLite and imported files remain in the private local data directory. Cloudflare R2 support is optional and currently used only for a storage connection check; there is no telemetry, advertising or external AI integration.
 
 ## Requirements
 
@@ -47,15 +47,20 @@ docs/
 data/           Local runtime data; ignored by Git
 ```
 
-Inside `data/`, Apotheke creates `apotheke.sqlite`, `files/`, and `tmp/`. Backing up that directory is sufficient to preserve V1 user content.
+Inside `data/`, Peanut creates its SQLite database, `files/`, and `tmp/`. Backing up that directory is sufficient to preserve V1 user content. Existing installations continue to use the legacy `apotheke.sqlite` filename so no local data is lost during the product rename.
 
-## V1 scope
+## Current scope
 
-- Import PDF, DOCX, TXT and Markdown files and extract searchable text
+- Import PDF, DOCX, TXT, Markdown and image files and extract searchable text where supported
 - Keep document metadata: title, original filename, category, tags, version and import date
 - Create, edit and delete searchable notes
-- Search documents and notes through SQLite FTS5
+- Organize nested folders, custom folder spaces and integration links or PDFs
+- Track tasks, deadlines and completion state
+- Keep an encrypted local password vault
+- Search documents, images, notes, integrations and categories through SQLite FTS5
 - Support quoted phrases and `AND`, `OR`, `NOT` operators
-- Manage reusable categories and tags implicitly while editing content
+- Search partial words without caring about case or accents
+- Ask Pini for extractive answers sourced from local workspace content
+- Manage reusable categories and tags while editing content
 
 See [`docs/architecture`](docs/architecture) for the decisions that keep later PDF viewing, OCR, version comparison and semantic search possible without changing the V1 foundations.

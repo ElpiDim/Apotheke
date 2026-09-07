@@ -18,37 +18,37 @@
   background: #fffaf3;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
-  --apotheke-canvas: #fffaf3;
-  --apotheke-surface: #ffffff;
-  --apotheke-border: #eee7f7;
-  --apotheke-ink: #2f2941;
-  --apotheke-muted: #786d91;
+  --peanut-canvas: #fffaf3;
+  --peanut-surface: #ffffff;
+  --peanut-border: #eee7f7;
+  --peanut-ink: #2f2941;
+  --peanut-muted: #786d91;
 }
 
 .dark {
   color-scheme: dark;
   color: #f5f3ff;
   background: #171329;
-  --apotheke-canvas: #171329;
-  --apotheke-surface: #211b35;
-  --apotheke-border: #463b64;
-  --apotheke-ink: #f5f3ff;
-  --apotheke-muted: #b9add3;
+  --peanut-canvas: #171329;
+  --peanut-surface: #211b35;
+  --peanut-border: #463b64;
+  --peanut-ink: #f5f3ff;
+  --peanut-muted: #b9add3;
 }
 
 body {
   background:
     radial-gradient(circle at 88% 4%, rgb(232 226 255 / 55%), transparent 26rem),
     radial-gradient(circle at 20% 100%, rgb(255 224 216 / 42%), transparent 30rem),
-    var(--apotheke-canvas);
-  color: var(--apotheke-ink);
+    var(--peanut-canvas);
+  color: var(--peanut-ink);
 }
 
 .dark body {
   background:
     radial-gradient(circle at 88% 4%, rgb(103 85 195 / 16%), transparent 28rem),
     radial-gradient(circle at 18% 100%, rgb(255 128 102 / 8%), transparent 30rem),
-    var(--apotheke-canvas);
+    var(--peanut-canvas);
 }
 
 :focus-visible {

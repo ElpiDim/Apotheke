@@ -1,18 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { Category, DocumentRecord, Note } from '@apotheke/contracts';
-import { ArrowLeft, ChevronRight, FileText, FolderOpen, Sparkles, StickyNote } from 'lucide-react';
-import { Link, useParams } from 'react-router-dom';
+import type { Category, DocumentRecord, Note } from '@peanut/contracts';
+import { ArrowLeft, ChevronRight, FileText, FolderOpen, Sparkles, StickyNote, Trash2 } from 'lucide-react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { EmptyState } from '../../components/EmptyState';
 import { api } from '../../lib/api';
 import { formatBytes, formatDate } from '../../lib/format';
-import { onWorkspaceChange } from '../../lib/workspaceEvents';
+import { announceWorkspaceChange, onWorkspaceChange } from '../../lib/workspaceEvents';
 
 export function CategoriesPage() {
   const { categoryId } = useParams();
+  const navigate = useNavigate();
   const [categories, setCategories] = useState<Category[]>([]);
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -39,6 +41,18 @@ export function CategoriesPage() {
   const categoryDocuments = useMemo(() => documents.filter((item) => item.category?.id === categoryId), [categoryId, documents]);
   const categoryNotes = useMemo(() => notes.filter((item) => item.category?.id === categoryId), [categoryId, notes]);
 
+  async function removeCategory() {
+    if (!category || !window.confirm(`Delete the category “${category.name}”? Its documents and notes will remain as Uncategorized.`)) return;
+    setDeleteError('');
+    try {
+      await api(`/categories/${category.id}`, { method: 'DELETE' });
+      announceWorkspaceChange('categories', 'documents', 'notes');
+      navigate('/categories', { replace: true });
+    } catch (reason) {
+      setDeleteError(reason instanceof Error ? reason.message : 'The category could not be deleted.');
+    }
+  }
+
   if (categoryId) {
     return (
       <div>
@@ -47,13 +61,15 @@ export function CategoriesPage() {
           <div className="absolute -right-12 -top-16 h-56 w-72 rotate-6 rounded-[44%_56%_62%_38%/58%_42%_58%_42%] bg-gradient-to-br from-violet-100 via-fuchsia-50 to-teal-100 dark:from-violet-900/60 dark:via-fuchsia-950/30 dark:to-teal-950/40" />
           <div className="relative flex items-center gap-5">
             <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-500 shadow-sm dark:bg-amber-900/30 dark:text-amber-400"><FolderOpen size={31} /></div>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="text-[10px] font-bold uppercase tracking-[0.17em] text-coral-500">Category</p>
               <h1 className="mt-1 truncate font-serif text-3xl font-semibold text-violet-950 dark:text-violet-50 sm:text-4xl">{category?.name ?? (loading ? 'Loading…' : 'Category not found')}</h1>
               {category && <p className="mt-2 text-sm text-violet-500 dark:text-violet-300">{categoryDocuments.length} documents · {categoryNotes.length} notes</p>}
             </div>
+            {category && <button onClick={() => void removeCategory()} className="relative ml-auto flex shrink-0 items-center gap-2 rounded-xl border border-red-100 bg-white/80 px-3 py-2 text-xs font-semibold text-red-500 transition hover:bg-red-50 hover:text-red-600 dark:border-red-900/50 dark:bg-violet-950/40 dark:hover:bg-red-950/30" aria-label={`Delete ${category.name}`}><Trash2 size={14} /><span className="hidden sm:inline">Delete category</span></button>}
           </div>
         </section>
+        {deleteError && <p className="mb-5 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-xs text-red-600 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">{deleteError}</p>}
 
         {!loading && !category ? (
           <EmptyState icon={FolderOpen} title="Category not found" description="This category may no longer exist." action={<Link to="/categories" className="font-semibold text-violet-600">View all categories</Link>} />

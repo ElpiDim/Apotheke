@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import type { SearchResult } from '@apotheke/contracts';
+import type { SearchResult } from '@peanut/contracts';
 import { ArrowUpRight, FileText, FolderOpen, Image as ImageIcon, PlugZap, Search, Sparkles, StickyNote } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Badge } from '../../components/Badge';

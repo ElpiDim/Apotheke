@@ -1,4 +1,4 @@
-import { createTaskSchema, updateTaskSchema } from '@apotheke/contracts';
+import { createTaskSchema, updateTaskSchema } from '@peanut/contracts';
 import { Router } from 'express';
 import { database } from '../../database/context.js';
 import { createTask, deleteTask, listTasks, updateTask } from './taskRepository.js';

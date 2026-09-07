@@ -10,12 +10,11 @@ import { SearchPage } from '../features/search/SearchPage';
 import { PasswordsPage } from '../features/vault/PasswordsPage';
 import { AppShell } from './AppShell';
 import { OverviewPage } from './OverviewPage';
-import { AuthGate } from '../features/auth/AuthGate';
 
 export function App() {
   return (
     <BrowserRouter>
-      <AuthGate><AppShell>
+      <AppShell>
         <Routes>
           <Route path="/" element={<OverviewPage />} />
           <Route path="/documents" element={<DocumentsPage />} />
@@ -30,7 +29,7 @@ export function App() {
           <Route path="/categories/:categoryId" element={<CategoriesPage />} />
           <Route path="/search" element={<SearchPage />} />
         </Routes>
-      </AppShell></AuthGate>
+      </AppShell>
     </BrowserRouter>
   );
 }

@@ -1,4 +1,4 @@
-import type { ApothekeDatabase } from '../../database/database.js';
+import type { PeanutDatabase } from '../../database/database.js';
 
 interface SearchSourceRow {
   title: string;
@@ -14,7 +14,7 @@ function normalizeSearchText(value: string): string {
 }
 
 function replaceIndexRow(
-  database: ApothekeDatabase,
+  database: PeanutDatabase,
   entityType: 'document' | 'note' | 'integration' | 'category',
   entityId: string,
   source: SearchSourceRow,
@@ -33,7 +33,7 @@ function replaceIndexRow(
     .run(entityType, entityId, source.title, source.content, metadata);
 }
 
-export function reindexDocument(database: ApothekeDatabase, documentId: string): void {
+export function reindexDocument(database: PeanutDatabase, documentId: string): void {
   const row = database
     .prepare(
       `SELECT d.title,
@@ -55,7 +55,7 @@ export function reindexDocument(database: ApothekeDatabase, documentId: string):
   if (row) replaceIndexRow(database, 'document', documentId, row);
 }
 
-export function reindexNote(database: ApothekeDatabase, noteId: string): void {
+export function reindexNote(database: PeanutDatabase, noteId: string): void {
   const row = database
     .prepare(
       `SELECT n.title,
@@ -75,7 +75,7 @@ export function reindexNote(database: ApothekeDatabase, noteId: string): void {
   if (row) replaceIndexRow(database, 'note', noteId, row);
 }
 
-export function reindexIntegrationEntry(database: ApothekeDatabase, entryId: string): void {
+export function reindexIntegrationEntry(database: PeanutDatabase, entryId: string): void {
   const entry = database.prepare(`
     SELECT title, description AS content, folder_id AS folderId, url, original_filename AS originalFilename
     FROM integration_entries WHERE id = ?
@@ -113,7 +113,7 @@ export function reindexIntegrationEntry(database: ApothekeDatabase, entryId: str
   });
 }
 
-export function reindexCategory(database: ApothekeDatabase, categoryId: string): void {
+export function reindexCategory(database: PeanutDatabase, categoryId: string): void {
   const row = database.prepare('SELECT name AS title FROM categories WHERE id = ?').get(categoryId) as { title: string } | undefined;
   if (!row) return;
   replaceIndexRow(database, 'category', categoryId, {
@@ -126,7 +126,7 @@ export function reindexCategory(database: ApothekeDatabase, categoryId: string):
 }
 
 export function removeFromIndex(
-  database: ApothekeDatabase,
+  database: PeanutDatabase,
   entityType: 'document' | 'note' | 'integration' | 'category',
   entityId: string,
 ): void {

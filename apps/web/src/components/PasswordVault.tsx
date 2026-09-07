@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import type { CreateVaultEntryInput, VaultEntry } from '@apotheke/contracts';
+import type { CreateVaultEntryInput, VaultEntry } from '@peanut/contracts';
 import { Copy, Eye, EyeOff, KeyRound, LockKeyhole, Pencil, Plus, Save, ShieldCheck, Trash2, X } from 'lucide-react';
 import { api, ApiError, jsonRequest } from '../lib/api';
 

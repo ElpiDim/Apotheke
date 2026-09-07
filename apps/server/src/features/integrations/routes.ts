@@ -5,7 +5,7 @@ import {
   updateIntegrationEntrySchema,
   updateIntegrationFolderSchema,
   updateIntegrationSpaceSchema,
-} from '@apotheke/contracts';
+} from '@peanut/contracts';
 import { Router } from 'express';
 import fs from 'node:fs/promises';
 import path from 'node:path';

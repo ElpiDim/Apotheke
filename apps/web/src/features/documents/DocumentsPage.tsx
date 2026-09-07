@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type DragEvent, type FormEvent, type InputHTMLAttributes } from 'react';
-import type { Category, DocumentRecord, Tag } from '@apotheke/contracts';
+import type { Category, DocumentRecord, Tag } from '@peanut/contracts';
 import { ChevronLeft, ChevronRight, FilePlus2, FileText, Image as ImageIcon, Plus, Search, Star, X } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { EmptyState } from '../../components/EmptyState';

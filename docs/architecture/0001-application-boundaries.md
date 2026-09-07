@@ -4,7 +4,7 @@ Status: Accepted
 
 ## Context
 
-Apotheke starts as a local web application but is expected to gain substantially different capabilities later: document rendering, OCR, local AI, semantic search and possibly synchronization. A single undifferentiated `src` tree would make those concerns increasingly coupled.
+Peanut starts as a local web application but is expected to gain substantially different capabilities later: document rendering, OCR, local AI, semantic search and possibly synchronization. A single undifferentiated `src` tree would make those concerns increasingly coupled.
 
 ## Decision
 

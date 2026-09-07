@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { createHash } from 'node:crypto';
-import { importDocumentFieldsSchema, type DocumentRecord } from '@apotheke/contracts';
+import { importDocumentFieldsSchema, type DocumentRecord } from '@peanut/contracts';
 import type { Express } from 'express';
 import { config } from '../../config/config.js';
 import { database } from '../../database/context.js';

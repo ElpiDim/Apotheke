@@ -1,4 +1,4 @@
-import { createVaultEntrySchema, updateVaultEntrySchema, vaultPasswordSchema } from '@apotheke/contracts';
+import { createVaultEntrySchema, updateVaultEntrySchema, vaultPasswordSchema } from '@peanut/contracts';
 import { Router, type Request } from 'express';
 import { database } from '../../database/context.js';
 import { createVaultEntry, deleteVaultEntry, getVaultKey, listVaultEntries, lockVault, setupVault, unlockVault, updateVaultEntry, vaultConfigured } from './vaultService.js';

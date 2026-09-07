@@ -1,4 +1,4 @@
-import { updateUserProfileSchema } from '@apotheke/contracts';
+import { updateUserProfileSchema } from '@peanut/contracts';
 import { Router } from 'express';
 import { database } from '../../database/context.js';
 import { getUserProfile, updateUserProfile } from './profileRepository.js';

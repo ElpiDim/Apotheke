@@ -1,4 +1,4 @@
-import { loginSchema, registerSchema } from '@apotheke/contracts';
+import { loginSchema, registerSchema } from '@peanut/contracts';
 import { Router } from 'express';
 import { database } from '../../database/context.js';
 import { authConfigured, bearerToken, login, logout, register, userForToken } from './authService.js';

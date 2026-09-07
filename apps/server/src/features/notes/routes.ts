@@ -1,4 +1,4 @@
-import { createNoteSchema, updateNoteSchema } from '@apotheke/contracts';
+import { createNoteSchema, updateNoteSchema } from '@peanut/contracts';
 import { Router } from 'express';
 import { database } from '../../database/context.js';
 import { createNote, deleteNote, getNote, listNotes, updateNote } from './noteRepository.js';

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type DragEvent, type FormEvent, type InputHTMLAttributes, type ReactNode } from 'react';
-import type { IntegrationEntry, IntegrationFolder, IntegrationSpace } from '@apotheke/contracts';
+import type { IntegrationEntry, IntegrationFolder, IntegrationSpace } from '@peanut/contracts';
 import { ChevronDown, ChevronRight, ExternalLink, FileText, Folder, FolderOpen, FolderPlus, HardDrive, Link2, Pencil, Plus, Sparkles, Trash2, UploadCloud, X } from 'lucide-react';
 import { EmptyState } from '../../components/EmptyState';
 import { api, jsonRequest } from '../../lib/api';
