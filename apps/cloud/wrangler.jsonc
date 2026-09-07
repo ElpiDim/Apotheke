@@ -5,7 +5,7 @@
   "compatibility_date": "2026-09-07",
   "compatibility_flags": ["nodejs_compat"],
   "vars": {
-    "BETTER_AUTH_URL": "http://localhost:8787",
+    "BETTER_AUTH_URL": "https://peanut-api-staging.elpida-el-dimitriadou.workers.dev",
     "APP_ORIGIN": "http://localhost:5173"
   },
   "d1_databases": [
