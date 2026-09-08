@@ -2,12 +2,14 @@ import { betterAuth } from 'better-auth';
 import type { Env } from './env';
 
 export function createAuth(env: Env) {
+  const trustedOrigins = env.APP_ORIGIN.split(',').map((origin) => origin.trim()).filter(Boolean);
+
   return betterAuth({
     appName: 'Peanut',
     baseURL: env.BETTER_AUTH_URL,
     secret: env.BETTER_AUTH_SECRET,
     database: env.DB,
-    trustedOrigins: [env.APP_ORIGIN],
+    trustedOrigins,
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: false,
@@ -20,6 +22,14 @@ export function createAuth(env: Env) {
     },
     advanced: {
       useSecureCookies: env.BETTER_AUTH_URL.startsWith('https://'),
+      cookies: {
+        session_token: {
+          attributes: {
+            sameSite: 'none',
+            secure: true,
+          },
+        },
+      },
     },
   });
 }

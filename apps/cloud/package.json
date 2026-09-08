@@ -11,6 +11,7 @@
     "db:migrate:remote": "wrangler d1 migrations apply peanut-staging --remote"
   },
   "dependencies": {
+    "@peanut/contracts": "0.1.0",
     "better-auth": "^1.7.3"
   },
   "devDependencies": {

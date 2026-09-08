@@ -22,12 +22,17 @@ import {
   UserRound,
   Briefcase,
   Save,
+  Cloud,
+  LogIn,
+  LogOut,
+  Mail,
 } from 'lucide-react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { api, jsonRequest } from '../lib/api';
 import { announceWorkspaceChange, onWorkspaceChange } from '../lib/workspaceEvents';
 import { PiniAssistant } from '../components/PiniAssistant';
 import { CommandPalette } from '../components/CommandPalette';
+import { announceAuthChange, authClient } from '../lib/authClient';
 
 const navItems = [
   { to: '/', label: 'Overview', icon: LayoutDashboard, end: true },
@@ -274,16 +279,33 @@ export function AppShell({ children }: { children: ReactNode }) {
 const emptyProfile: UserProfile = { name: '', email: '', role: '', bio: '', updatedAt: '' };
 
 function ProfileModal({ onClose }: { onClose: () => void }) {
+  const { data: session, isPending: sessionPending, refetch: refetchSession } = authClient.useSession();
   const [profile, setProfile] = useState<UserProfile>(emptyProfile);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
+  const [authMode, setAuthMode] = useState<'profile' | 'signIn' | 'signUp'>('profile');
+  const [authName, setAuthName] = useState('');
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authBusy, setAuthBusy] = useState(false);
+
+  async function loadProfile() {
+    setLoading(true);
+    setError('');
+    try {
+      const result = await api<{ profile: UserProfile }>('/profile');
+      setProfile(result.profile);
+    } catch (reason) {
+      setError((reason as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    void api<{ profile: UserProfile }>('/profile').then((result) => {
-      setProfile(result.profile);
-    }).catch((reason: Error) => setError(reason.message)).finally(() => setLoading(false));
+    void loadProfile();
   }, []);
 
   async function saveProfile(event: FormEvent) {
@@ -295,8 +317,45 @@ function ProfileModal({ onClose }: { onClose: () => void }) {
     finally { setSaving(false); }
   }
 
-  const initials = profile.name.trim().split(/\s+/u).slice(0, 2).map((part) => part[0]?.toLocaleUpperCase()).join('') || 'P';
-  return <div className="fixed inset-0 z-[90] flex items-center justify-center bg-violet-950/45 p-4 backdrop-blur-sm"><button onClick={onClose} aria-label="Close profile" className="absolute inset-0 cursor-default" /><section className="relative w-full max-w-xl overflow-hidden rounded-[28px] border border-violet-200 bg-[#fffdf9] shadow-2xl dark:border-violet-700 dark:bg-[#211b35]"><header className="relative overflow-hidden border-b border-violet-100 bg-gradient-to-r from-amber-50 via-orange-50 to-violet-100 px-6 py-5 dark:border-violet-800 dark:from-amber-950/30 dark:via-[#312039] dark:to-violet-950"><div className="absolute -right-6 -top-10 h-32 w-36 rounded-full bg-teal-200/70 dark:bg-teal-800/50" /><button onClick={onClose} aria-label="Close" className="absolute right-4 top-4 z-10 rounded-xl p-2 text-violet-400 hover:bg-white/70 dark:hover:bg-violet-800"><X size={17} /></button><div className="relative flex items-center gap-4"><div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[22px] bg-violet-700 font-serif text-xl font-bold text-white shadow-lg">{initials}</div><div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-coral-600">Peanut profile</p><h2 className="mt-1 font-serif text-2xl font-bold text-violet-950 dark:text-white">{profile.name || 'Your profile'}</h2><p className="mt-1 text-xs text-violet-500 dark:text-violet-300">Local profile · saved on this device.</p></div></div></header>{loading ? <div className="flex min-h-72 items-center justify-center text-sm text-violet-400">Loading profile…</div> : <form onSubmit={saveProfile} className="space-y-4 p-6"><ProfileField icon={<UserRound size={15} />} label="Name" value={profile.name} onChange={(value) => setProfile((current) => ({ ...current, name: value }))} placeholder="Your name" autoFocus /><ProfileField icon={<Briefcase size={15} />} label="Role or title" value={profile.role} onChange={(value) => setProfile((current) => ({ ...current, role: value }))} placeholder="e.g. Developer, Student" /><label className="block"><span className="mb-1.5 block text-xs font-semibold text-violet-600 dark:text-violet-300">About me</span><textarea value={profile.bio} onChange={(event) => setProfile((current) => ({ ...current, bio: event.target.value }))} placeholder="A few details about you…" className="min-h-28 w-full resize-none rounded-xl border border-violet-200 bg-white px-3 py-2.5 text-sm text-violet-900 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 dark:border-violet-700 dark:bg-violet-950 dark:text-violet-100" /></label>{error && <p className="rounded-xl bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-950/40 dark:text-red-300">{error}</p>}{saved && <p className="rounded-xl bg-teal-50 px-3 py-2 text-xs font-semibold text-teal-700 dark:bg-teal-950/40 dark:text-teal-300">Profile saved.</p>}<div className="flex justify-end gap-2 pt-1"><button type="button" onClick={onClose} className="rounded-xl border border-violet-200 px-4 py-2.5 text-xs font-semibold text-violet-500 dark:border-violet-700 dark:text-violet-300">Close</button><button disabled={saving} className="flex items-center gap-2 rounded-xl bg-coral-500 px-4 py-2.5 text-xs font-bold text-white hover:bg-coral-600 disabled:opacity-50"><Save size={14} />{saving ? 'Saving…' : 'Save profile'}</button></div></form>}</section></div>;
+  async function submitAuth(event: FormEvent) {
+    event.preventDefault();
+    setAuthBusy(true);
+    setError('');
+    try {
+      const result = authMode === 'signUp'
+        ? await authClient.signUp.email({ name: authName.trim(), email: authEmail.trim(), password: authPassword })
+        : await authClient.signIn.email({ email: authEmail.trim(), password: authPassword });
+      if (result.error) throw new Error(result.error.message ?? 'Peanut could not sign you in.');
+      await refetchSession();
+      await loadProfile();
+      announceAuthChange();
+      announceWorkspaceChange('notes', 'categories', 'tasks', 'integrations', 'documents');
+      setAuthMode('profile');
+      setAuthPassword('');
+    } catch (reason) {
+      setError((reason as Error).message);
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  async function signOut() {
+    setAuthBusy(true);
+    setError('');
+    const result = await authClient.signOut();
+    if (result.error) setError(result.error.message ?? 'Peanut could not sign you out.');
+    await refetchSession();
+    await loadProfile();
+    announceAuthChange();
+    announceWorkspaceChange('notes', 'categories', 'tasks', 'integrations', 'documents');
+    setAuthBusy(false);
+  }
+
+  const displayName = session?.user.name || profile.name || 'Your profile';
+  const initials = displayName.trim().split(/\s+/u).slice(0, 2).map((part) => part[0]?.toLocaleUpperCase()).join('') || 'P';
+  const waiting = loading || sessionPending;
+
+  return <div className="fixed inset-0 z-[90] flex items-center justify-center bg-violet-950/45 p-4 backdrop-blur-sm"><button onClick={onClose} aria-label="Close profile" className="absolute inset-0 cursor-default" /><section className="relative w-full max-w-xl overflow-hidden rounded-[28px] border border-violet-200 bg-[#fffdf9] shadow-2xl dark:border-violet-700 dark:bg-[#211b35]"><header className="relative overflow-hidden border-b border-violet-100 bg-gradient-to-r from-amber-50 via-orange-50 to-violet-100 px-6 py-5 dark:border-violet-800 dark:from-amber-950/30 dark:via-[#312039] dark:to-violet-950"><div className="absolute -right-6 -top-10 h-32 w-36 rounded-full bg-teal-200/70 dark:bg-teal-800/50" /><button onClick={onClose} aria-label="Close" className="absolute right-4 top-4 z-10 rounded-xl p-2 text-violet-400 hover:bg-white/70 dark:hover:bg-violet-800"><X size={17} /></button><div className="relative flex items-center gap-4"><div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[22px] bg-violet-700 font-serif text-xl font-bold text-white shadow-lg">{initials}</div><div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-coral-600">Peanut profile</p><h2 className="mt-1 truncate font-serif text-2xl font-bold text-violet-950 dark:text-white">{authMode === 'signIn' ? 'Welcome back' : authMode === 'signUp' ? 'Create your account' : displayName}</h2><p className="mt-1 text-xs text-violet-500 dark:text-violet-300">{session ? 'Cloud account · ready for sync.' : 'Guest mode · your workspace stays on this device.'}</p></div></div></header>{waiting ? <div className="flex min-h-72 items-center justify-center text-sm text-violet-400">Loading profile…</div> : authMode !== 'profile' ? <form onSubmit={submitAuth} className="space-y-4 p-6">{authMode === 'signUp' && <ProfileField icon={<UserRound size={15} />} label="Name" value={authName} onChange={setAuthName} placeholder="Your name" autoFocus />}<ProfileField icon={<Mail size={15} />} label="Email" value={authEmail} onChange={setAuthEmail} type="email" placeholder="you@example.com" autoFocus={authMode === 'signIn'} /><ProfileField icon={<LockKeyhole size={15} />} label="Password" value={authPassword} onChange={setAuthPassword} type="password" placeholder="At least 10 characters" />{error && <p className="rounded-xl bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-950/40 dark:text-red-300">{error}</p>}<p className="text-[11px] leading-5 text-violet-400">Signing in enables cloud sync later. Your current local files are not uploaded automatically.</p><div className="flex items-center justify-between pt-1"><button type="button" onClick={() => { setAuthMode('profile'); setError(''); }} className="rounded-xl border border-violet-200 px-4 py-2.5 text-xs font-semibold text-violet-500 dark:border-violet-700 dark:text-violet-300">Back</button><button disabled={authBusy || authPassword.length < 10 || !authEmail.trim() || (authMode === 'signUp' && !authName.trim())} className="flex items-center gap-2 rounded-xl bg-violet-700 px-5 py-2.5 text-xs font-bold text-white hover:bg-violet-800 disabled:opacity-40"><LogIn size={14} />{authBusy ? 'Please wait…' : authMode === 'signUp' ? 'Create account' : 'Sign in'}</button></div></form> : <form onSubmit={saveProfile} className="space-y-4 p-6">{session ? <div className="flex items-center gap-3 rounded-2xl border border-teal-200 bg-teal-50 px-4 py-3 dark:border-teal-800 dark:bg-teal-950/30"><Cloud size={18} className="shrink-0 text-teal-600" /><div className="min-w-0 flex-1"><p className="text-xs font-bold text-teal-800 dark:text-teal-200">Signed in</p><p className="mt-0.5 truncate text-[11px] text-teal-600 dark:text-teal-300">{session.user.email}</p></div></div> : <div className="rounded-2xl border border-violet-200 bg-violet-50/60 p-4 dark:border-violet-700 dark:bg-violet-950/40"><div className="flex items-start gap-3"><Cloud size={18} className="mt-0.5 text-violet-500" /><div><p className="text-xs font-bold text-violet-900 dark:text-violet-100">Use Peanut on more devices</p><p className="mt-1 text-[11px] leading-5 text-violet-500 dark:text-violet-300">Create an optional account to enable secure cloud sync later.</p></div></div><div className="mt-3 flex gap-2"><button type="button" onClick={() => { setAuthMode('signIn'); setError(''); }} className="rounded-xl border border-violet-200 bg-white px-4 py-2 text-xs font-semibold text-violet-700 dark:border-violet-700 dark:bg-violet-900 dark:text-violet-100">Sign in</button><button type="button" onClick={() => { setAuthMode('signUp'); setError(''); }} className="rounded-xl bg-violet-700 px-4 py-2 text-xs font-bold text-white hover:bg-violet-800">Create account</button></div></div>}<ProfileField icon={<UserRound size={15} />} label="Name" value={profile.name} onChange={(value) => setProfile((current) => ({ ...current, name: value }))} placeholder="Your name" /><ProfileField icon={<Briefcase size={15} />} label="Role or title" value={profile.role} onChange={(value) => setProfile((current) => ({ ...current, role: value }))} placeholder="e.g. Developer, Student" /><label className="block"><span className="mb-1.5 block text-xs font-semibold text-violet-600 dark:text-violet-300">About me</span><textarea value={profile.bio} onChange={(event) => setProfile((current) => ({ ...current, bio: event.target.value }))} placeholder="A few details about you…" className="min-h-24 w-full resize-none rounded-xl border border-violet-200 bg-white px-3 py-2.5 text-sm text-violet-900 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 dark:border-violet-700 dark:bg-violet-950 dark:text-violet-100" /></label>{error && <p className="rounded-xl bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-950/40 dark:text-red-300">{error}</p>}{saved && <p className="rounded-xl bg-teal-50 px-3 py-2 text-xs font-semibold text-teal-700 dark:bg-teal-950/40 dark:text-teal-300">Profile saved.</p>}<div className="flex items-center justify-between gap-2 pt-1">{session ? <button type="button" disabled={authBusy} onClick={() => void signOut()} className="flex items-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-semibold text-violet-500 hover:bg-violet-50 disabled:opacity-40 dark:text-violet-300 dark:hover:bg-violet-900"><LogOut size={14} />Sign out</button> : <span />}<div className="flex gap-2"><button type="button" onClick={onClose} className="rounded-xl border border-violet-200 px-4 py-2.5 text-xs font-semibold text-violet-500 dark:border-violet-700 dark:text-violet-300">Close</button><button disabled={saving} className="flex items-center gap-2 rounded-xl bg-coral-500 px-4 py-2.5 text-xs font-bold text-white hover:bg-coral-600 disabled:opacity-50"><Save size={14} />{saving ? 'Saving…' : 'Save profile'}</button></div></div></form>}</section></div>;
 }
 
 function ProfileField({ icon, label, value, onChange, type = 'text', placeholder, autoFocus = false }: { icon: ReactNode; label: string; value: string; onChange: (value: string) => void; type?: string; placeholder?: string; autoFocus?: boolean }) {
