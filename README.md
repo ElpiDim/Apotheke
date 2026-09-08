@@ -56,7 +56,6 @@ Inside `data/`, Peanut creates its SQLite database, `files/`, and `tmp/`. Backin
 - Create, edit and delete searchable notes
 - Organize nested folders, custom folder spaces and integration links or PDFs
 - Track tasks, deadlines and completion state
-- Keep an encrypted local password vault
 - Search documents, images, notes, integrations and categories through SQLite FTS5
 - Support quoted phrases and `AND`, `OR`, `NOT` operators
 - Search partial words without caring about case or accents

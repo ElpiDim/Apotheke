@@ -40,7 +40,6 @@ const navItems = [
   { to: '/images', label: 'Images', icon: ImageIcon, end: false },
   { to: '/notes', label: 'Notes', icon: StickyNote, end: false },
   { to: '/tasks', label: 'Tasks', icon: ListTodo, end: false },
-  { to: '/passwords', label: 'Passwords', icon: LockKeyhole, end: false },
 ] as const;
 
 function Sidebar({ mobileOpen, onClose, onProfile }: { mobileOpen: boolean; onClose: () => void; onProfile: () => void }) {

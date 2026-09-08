@@ -38,6 +38,20 @@ async function requireSession(request: Request, env: Env) {
   return session ?? null;
 }
 
+async function resolveWorkspaceOwner(request: Request, env: Env): Promise<string | null> {
+  const session = await requireSession(request, env);
+  if (session) return session.user.id;
+  const token = request.headers.get('X-Peanut-Guest');
+  if (!token || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(token)) return null;
+  const ownerId = `guest:${token}`;
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
+  const guestKey = [...new Uint8Array(digest)].map((value) => value.toString(16).padStart(2, '0')).join('');
+  const now = new Date().toISOString();
+  await env.DB.prepare('INSERT OR IGNORE INTO "user" (id, name, email, emailVerified, createdAt, updatedAt) VALUES (?, ?, ?, 0, ?, ?)')
+    .bind(ownerId, 'Guest', `guest-${guestKey}@guest.peanut.invalid`, now, now).run();
+  return ownerId;
+}
+
 async function workspaceResponse(request: Request, env: Env, pathname: string, ownerId: string): Promise<Response | null> {
   if (pathname === '/api/profile' && request.method === 'GET') return json({ profile: await getUserProfile(env.DB, ownerId) });
   if (pathname === '/api/profile' && request.method === 'PATCH') return json({ profile: await updateUserProfile(env.DB, ownerId, await request.json()) });
@@ -108,6 +122,10 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
 
+    if (request.headers.has('Origin') && !allowedOrigin(request, env)) {
+      return json({ error: 'ORIGIN_NOT_ALLOWED', message: 'This origin is not allowed.' }, 403);
+    }
+
     if (request.method === 'OPTIONS') {
       const origin = allowedOrigin(request, env);
       if (!origin) return new Response(null, { status: 403 });
@@ -116,7 +134,7 @@ export default {
         headers: {
           'Access-Control-Allow-Origin': origin,
           'Access-Control-Allow-Credentials': 'true',
-          'Access-Control-Allow-Headers': 'Content-Type',
+          'Access-Control-Allow-Headers': 'Content-Type, X-Peanut-Guest',
           'Access-Control-Allow-Methods': 'GET,POST,PATCH,DELETE,OPTIONS',
           'Access-Control-Max-Age': '86400',
           'Vary': 'Origin',
@@ -138,10 +156,10 @@ export default {
     }
 
     if (url.pathname === '/api/profile' || url.pathname === '/api/categories' || url.pathname.startsWith('/api/categories/') || url.pathname === '/api/tags' || url.pathname === '/api/notes' || url.pathname.startsWith('/api/notes/') || url.pathname === '/api/tasks' || url.pathname.startsWith('/api/tasks/') || url.pathname === '/api/integrations' || url.pathname.startsWith('/api/integrations/') || url.pathname === '/api/documents' || url.pathname.startsWith('/api/documents/') || url.pathname === '/api/search' || url.pathname === '/api/search/answer') {
-      const session = await requireSession(request, env);
-      if (!session) return withCors(json({ error: 'AUTH_REQUIRED', message: 'Please sign in to Peanut.' }, 401), request, env);
+      const ownerId = await resolveWorkspaceOwner(request, env);
+      if (!ownerId) return withCors(json({ error: 'AUTH_REQUIRED', message: 'Please sign in to Peanut.' }, 401), request, env);
       try {
-        const response = await workspaceResponse(request, env, url.pathname, session.user.id);
+        const response = await workspaceResponse(request, env, url.pathname, ownerId);
         return withCors(response ?? json({ error: 'NOT_FOUND' }, 404), request, env);
       } catch (error) {
         if (error instanceof WorkspaceError) return withCors(json({ error: error.code, message: error.message }, error.status), request, env);
