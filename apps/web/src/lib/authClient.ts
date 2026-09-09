@@ -1,7 +1,10 @@
 import { createAuthClient } from 'better-auth/react';
 
-export const cloudApiUrl = import.meta.env.VITE_CLOUD_API_URL
-  ?? 'https://peanut-api-staging.elpida-el-dimitriadou.workers.dev';
+const hosted = typeof window !== 'undefined' && !['localhost', '127.0.0.1'].includes(window.location.hostname);
+
+export const cloudApiUrl = hosted
+  ? window.location.origin
+  : import.meta.env.VITE_CLOUD_API_URL ?? 'https://peanut-api-staging.elpida-el-dimitriadou.workers.dev';
 
 export const authClient = createAuthClient({
   baseURL: cloudApiUrl,

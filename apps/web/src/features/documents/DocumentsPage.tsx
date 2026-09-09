@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, FilePlus2, FileText, Image as ImageIcon, Plu
 import { Link, useSearchParams } from 'react-router-dom';
 import { EmptyState } from '../../components/EmptyState';
 import { ApiImage } from '../../components/ApiImage';
-import { api, ApiError } from '../../lib/api';
+import { api, apiBlob, ApiError, jsonRequest } from '../../lib/api';
 import { formatBytes, formatDate } from '../../lib/format';
 import { announceWorkspaceChange, onWorkspaceChange } from '../../lib/workspaceEvents';
 
@@ -56,6 +56,25 @@ export function DocumentsPage({ initialFilter = 'all' }: { initialFilter?: FileF
     window.addEventListener('focus', refreshOnFocus);
     return () => { unsubscribe(); window.removeEventListener('focus', refreshOnFocus); };
   }, [load]);
+
+  useEffect(() => {
+    if (loading) return;
+    const searchable = documents.filter((document) => ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'].includes(document.currentVersion.mimeType));
+    if (searchable.length === 0) return;
+    void api<{ documents: Array<{ id: string; originalFilename: string }> }>('/documents/pending-text')
+      .then(async ({ documents: pending }) => {
+        for (const document of pending) {
+          try {
+            const file = await apiBlob(`/documents/${document.id}/file`);
+            const extractedText = await extractFileTextLazy(file, document.originalFilename);
+            await api(`/documents/${document.id}/extracted-text`, jsonRequest('PATCH', { extractedText }));
+          } catch {
+            // A single unreadable file must not interrupt the library or other files.
+          }
+        }
+      })
+      .catch(() => undefined);
+  }, [documents, loading]);
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase();
@@ -210,6 +229,8 @@ function ImportDialog({ initialFiles, onClose, onImported }: { initialFiles: Fil
         values.set('version', String(sharedValues.get('version') || '1.0'));
         values.set('category', String(sharedValues.get('category') || ''));
         values.set('tags', String(sharedValues.get('tags') || ''));
+        const extractedText = await extractFileTextLazy(file, file.name);
+        if (extractedText) values.set('extractedText', extractedText);
         if (files.length === 1) values.set('title', String(sharedValues.get('title') || ''));
         await api('/documents/import', { method: 'POST', body: values });
       }));
@@ -227,6 +248,11 @@ function ImportDialog({ initialFiles, onClose, onImported }: { initialFiles: Fil
   }
 
   return <div className="fixed inset-0 z-50 flex items-center justify-center bg-violet-950/40 p-4 backdrop-blur-sm"><div className="w-full max-w-lg rounded-2xl border border-violet-100 bg-white shadow-2xl dark:border-violet-700 dark:bg-[#211b35]"><div className="flex items-start justify-between border-b border-violet-100 px-6 py-5 dark:border-violet-800"><div><h2 className="font-serif text-xl font-semibold text-violet-950 dark:text-violet-50">Import files</h2><p className="mt-1 text-xs text-violet-500 dark:text-violet-300">Documents and images · maximum 50 MB each</p></div><button onClick={onClose} aria-label="Close" className="rounded-lg p-1.5 text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900"><X size={18} /></button></div><form onSubmit={submit} className="space-y-4 p-6"><label className="block"><span className="mb-1.5 block text-xs font-semibold text-violet-600 dark:text-violet-300">Files</span><input name="file" type="file" multiple accept=".pdf,.docx,.txt,.md,.markdown,.jpg,.jpeg,.png,.webp,.gif,.avif" onChange={(event) => setFiles(Array.from(event.target.files ?? []))} className="block w-full rounded-xl border border-violet-200 bg-violet-50/50 px-3 py-2 text-xs text-violet-600 file:mr-3 file:rounded-lg file:border-0 file:bg-violet-200 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-violet-700 dark:border-violet-700 dark:bg-violet-950 dark:text-violet-300" />{files.length > 0 && <div className="mt-2 max-h-24 space-y-1 overflow-y-auto rounded-lg bg-teal-50 px-3 py-2 text-[11px] font-semibold text-teal-700 dark:bg-teal-950 dark:text-teal-300"><p>{files.length} {files.length === 1 ? 'file' : 'files'} ready</p>{files.slice(0, 4).map((file) => <p key={`${file.name}-${file.lastModified}`} className="truncate font-normal">{file.name}</p>)}{files.length > 4 && <p className="font-normal">+{files.length - 4} more</p>}</div>}</label>{organized && <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 dark:border-amber-800 dark:bg-amber-950/30"><img src="/pini-mascot.png" alt="" className="h-11 w-auto" /><div><p className="text-[11px] font-bold text-violet-800 dark:text-violet-100">Pini organized these automatically</p><p className="mt-0.5 text-[10px] leading-4 text-violet-500 dark:text-violet-300">Images will appear in Images automatically. Review the shared category and tags before importing.</p></div></div>}<div className="grid grid-cols-[1fr_100px] gap-4"><Field label="Title" name="title" disabled={files.length > 1} placeholder={files.length > 1 ? 'Uses each filename' : 'Defaults to filename'} /><Field label="Version" name="version" defaultValue="1.0" /></div><Field label="Category" name="category" value={category} onChange={(event) => setCategory(event.target.value)} placeholder="e.g. SDK" /><Field label="Tags" name="tags" value={tags} onChange={(event) => setTags(event.target.value)} placeholder="API, wallet, integration" hint="Applied to every selected file. Images still appear under Images automatically." />{error && <div className={`rounded-xl border px-3 py-2 text-xs ${error.includes('already saved') ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300' : 'border-red-200 bg-red-50 text-red-700'}`}>{error}</div>}<div className="flex justify-end gap-2 pt-2"><button type="button" onClick={onClose} className="rounded-xl border border-violet-200 px-4 py-2 text-xs font-semibold text-violet-600 hover:bg-violet-50 dark:border-violet-700 dark:text-violet-300 dark:hover:bg-violet-900">Cancel</button><button disabled={saving} className="rounded-xl bg-coral-500 px-4 py-2 text-xs font-semibold text-white hover:bg-coral-600 disabled:opacity-50">{saving ? `Importing ${files.length}…` : `Import ${files.length || ''} ${files.length === 1 ? 'file' : 'files'}`}</button></div></form></div></div>;
+}
+
+async function extractFileTextLazy(file: Blob, filename: string): Promise<string> {
+  const { extractFileText } = await import('./extractText');
+  return extractFileText(file, filename);
 }
 
 function Field({ label, hint, ...props }: { label: string; hint?: string } & InputHTMLAttributes<HTMLInputElement>) {

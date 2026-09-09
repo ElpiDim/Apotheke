@@ -26,6 +26,8 @@ import {
   LogIn,
   LogOut,
   Mail,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { api, jsonRequest } from '../lib/api';
@@ -358,5 +360,7 @@ function ProfileModal({ onClose }: { onClose: () => void }) {
 }
 
 function ProfileField({ icon, label, value, onChange, type = 'text', placeholder, autoFocus = false }: { icon: ReactNode; label: string; value: string; onChange: (value: string) => void; type?: string; placeholder?: string; autoFocus?: boolean }) {
-  return <label className="block"><span className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-violet-600 dark:text-violet-300">{icon}{label}</span><input type={type} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} autoFocus={autoFocus} className="h-11 w-full rounded-xl border border-violet-200 bg-white px-3 text-sm text-violet-900 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 dark:border-violet-700 dark:bg-violet-950 dark:text-violet-100" /></label>;
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const isPassword = type === 'password';
+  return <label className="block"><span className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-violet-600 dark:text-violet-300">{icon}{label}</span><span className="relative block"><input type={isPassword && passwordVisible ? 'text' : type} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} autoFocus={autoFocus} className={`h-11 w-full rounded-xl border border-violet-200 bg-white px-3 text-sm text-violet-900 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 dark:border-violet-700 dark:bg-violet-950 dark:text-violet-100 ${isPassword ? 'pr-11' : ''}`} />{isPassword && <button type="button" onClick={() => setPasswordVisible((visible) => !visible)} aria-label={passwordVisible ? 'Hide password' : 'Show password'} title={passwordVisible ? 'Hide password' : 'Show password'} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-violet-400 hover:bg-violet-50 hover:text-violet-700 dark:hover:bg-violet-900 dark:hover:text-violet-200">{passwordVisible ? <EyeOff size={16} /> : <Eye size={16} />}</button>}</span></label>;
 }

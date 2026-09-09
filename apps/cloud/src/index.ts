@@ -2,7 +2,7 @@ import { createAuth } from './auth';
 import type { Env } from './env';
 import { createNote, createTask, deleteCategory, deleteNote, deleteTask, getNote, getUserProfile, listCategories, listNotes, listTags, listTasks, updateNote, updateTask, updateUserProfile, WorkspaceError } from './workspace';
 import { createEntry, createFolder, createPdf, createSpace, deleteEntry, deleteFolder, deleteSpace, getPdf, listIntegrationWorkspace, updateEntry, updateFolder, updateSpace } from './integrations';
-import { deleteDocument, getDocument, getFile, importDocument, listDocuments } from './documents';
+import { deleteDocument, getDocument, getFile, importDocument, listDocuments, listPendingTextDocuments, updateExtractedText } from './documents';
 import { answerWorkspace, searchWorkspace } from './search';
 
 function json(body: unknown, status = 200): Response {
@@ -108,6 +108,9 @@ async function workspaceResponse(request: Request, env: Env, pathname: string, o
   if (entryMatch && request.method === 'DELETE') { await deleteEntry(env.DB, env.FILES, ownerId, entryMatch[1]!); return new Response(null, { status: 204 }); }
   if (pathname === '/api/documents' && request.method === 'GET') return json({ documents: await listDocuments(env.DB, ownerId) });
   if (pathname === '/api/documents/import' && request.method === 'POST') return json({ document: await importDocument(env.DB, env.FILES, ownerId, await request.formData()) }, 201);
+  if (pathname === '/api/documents/pending-text' && request.method === 'GET') return json({ documents: await listPendingTextDocuments(env.DB, ownerId) });
+  const extractedTextMatch = pathname.match(/^\/api\/documents\/([^/]+)\/extracted-text$/u);
+  if (extractedTextMatch && request.method === 'PATCH') { await updateExtractedText(env.DB, ownerId, extractedTextMatch[1]!, await request.json()); return new Response(null, { status: 204 }); }
   const documentFileMatch = pathname.match(/^\/api\/documents\/([^/]+)\/file$/u);
   if (documentFileMatch && request.method === 'GET') return getFile(env.DB, env.FILES, ownerId, documentFileMatch[1]!);
   const documentMatch = pathname.match(/^\/api\/documents\/([^/]+)$/u);
