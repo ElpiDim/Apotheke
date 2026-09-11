@@ -1,5 +1,10 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
-import type { Category, IntegrationSpace, Task, UserProfile } from '@peanut/contracts';
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import type {
+  Category,
+  IntegrationSpace,
+  Task,
+  UserProfile,
+} from "@peanut/contracts";
 import {
   FileText,
   LayoutDashboard,
@@ -28,84 +33,168 @@ import {
   Mail,
   Eye,
   EyeOff,
-} from 'lucide-react';
-import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { api, jsonRequest } from '../lib/api';
-import { announceWorkspaceChange, onWorkspaceChange } from '../lib/workspaceEvents';
-import { PiniAssistant } from '../components/PiniAssistant';
-import { CommandPalette } from '../components/CommandPalette';
-import { announceAuthChange, authClient } from '../lib/authClient';
+  KeyRound,
+} from "lucide-react";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
+import { api, jsonRequest } from "../lib/api";
+import {
+  announceWorkspaceChange,
+  onWorkspaceChange,
+} from "../lib/workspaceEvents";
+import { PiniAssistant } from "../components/PiniAssistant";
+import { CommandPalette } from "../components/CommandPalette";
+import { announceAuthChange, authClient } from "../lib/authClient";
 
 const navItems = [
-  { to: '/', label: 'Overview', icon: LayoutDashboard, end: true },
-  { to: '/documents', label: 'Documents', icon: FileText, end: false },
-  { to: '/images', label: 'Images', icon: ImageIcon, end: false },
-  { to: '/notes', label: 'Notes', icon: StickyNote, end: false },
-  { to: '/tasks', label: 'Tasks', icon: ListTodo, end: false },
+  { to: "/", label: "Overview", icon: LayoutDashboard, end: true },
+  { to: "/documents", label: "Documents", icon: FileText, end: false },
+  { to: "/images", label: "Images", icon: ImageIcon, end: false },
+  { to: "/notes", label: "Notes", icon: StickyNote, end: false },
+  { to: "/tasks", label: "Tasks", icon: ListTodo, end: false },
 ] as const;
 
-function Sidebar({ mobileOpen, onClose, onProfile }: { mobileOpen: boolean; onClose: () => void; onProfile: () => void }) {
+function Sidebar({
+  mobileOpen,
+  onClose,
+  onProfile,
+  onSignIn,
+}: {
+  mobileOpen: boolean;
+  onClose: () => void;
+  onProfile: () => void;
+  onSignIn: () => void;
+}) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { data: session, refetch: refetchSession } = authClient.useSession();
   const [categories, setCategories] = useState<Category[]>([]);
   const [spaces, setSpaces] = useState<IntegrationSpace[]>([]);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
-  const [categoryQuery, setCategoryQuery] = useState('');
+  const [categoryQuery, setCategoryQuery] = useState("");
+  const [signingOut, setSigningOut] = useState(false);
+
+  async function signOutFromSidebar() {
+    setSigningOut(true);
+    const result = await authClient.signOut();
+    if (!result.error) {
+      await refetchSession();
+      announceAuthChange();
+      announceWorkspaceChange(
+        "notes",
+        "categories",
+        "tasks",
+        "integrations",
+        "documents",
+      );
+    }
+    setSigningOut(false);
+  }
 
   useEffect(() => {
     let active = true;
-    const load = () => api<{ categories: Category[] }>('/categories')
-      .then((result) => { if (active) setCategories(result.categories); })
-      .catch(() => undefined);
+    const load = () =>
+      api<{ categories: Category[] }>("/categories")
+        .then((result) => {
+          if (active) setCategories(result.categories);
+        })
+        .catch(() => undefined);
     void load();
-    const unsubscribe = onWorkspaceChange((resources) => { if (resources.includes('categories')) void load(); });
+    const unsubscribe = onWorkspaceChange((resources) => {
+      if (resources.includes("categories")) void load();
+    });
     const refreshOnFocus = () => void load();
-    window.addEventListener('focus', refreshOnFocus);
-    return () => { active = false; unsubscribe(); window.removeEventListener('focus', refreshOnFocus); };
+    window.addEventListener("focus", refreshOnFocus);
+    return () => {
+      active = false;
+      unsubscribe();
+      window.removeEventListener("focus", refreshOnFocus);
+    };
   }, []);
 
   useEffect(() => {
     let active = true;
-    const load = () => api<{ spaces: IntegrationSpace[] }>('/integrations/spaces')
-      .then((result) => { if (active) setSpaces(result.spaces); })
-      .catch(() => undefined);
+    const load = () =>
+      api<{ spaces: IntegrationSpace[] }>("/integrations/spaces")
+        .then((result) => {
+          if (active) setSpaces(result.spaces);
+        })
+        .catch(() => undefined);
     void load();
-    const unsubscribe = onWorkspaceChange((resources) => { if (resources.includes('integrations')) void load(); });
-    return () => { active = false; unsubscribe(); };
+    const unsubscribe = onWorkspaceChange((resources) => {
+      if (resources.includes("integrations")) void load();
+    });
+    return () => {
+      active = false;
+      unsubscribe();
+    };
   }, []);
 
   async function createSpace() {
-    const name = window.prompt('Name your new section (for example, Projects):')?.trim();
+    const name = window
+      .prompt("Name your new section (for example, Projects):")
+      ?.trim();
     if (!name) return;
-    const result = await api<{ space: IntegrationSpace }>('/integrations/spaces', jsonRequest('POST', { name }));
-    announceWorkspaceChange('integrations');
+    const result = await api<{ space: IntegrationSpace }>(
+      "/integrations/spaces",
+      jsonRequest("POST", { name }),
+    );
+    announceWorkspaceChange("integrations");
     navigate(`/integrations?space=${result.space.id}`);
     onClose();
   }
 
   async function renameSpace(space: IntegrationSpace) {
-    const name = window.prompt('Rename section:', space.name)?.trim();
+    const name = window.prompt("Rename section:", space.name)?.trim();
     if (!name || name === space.name) return;
-    await api(`/integrations/spaces/${space.id}`, jsonRequest('PATCH', { name }));
-    announceWorkspaceChange('integrations');
+    await api(
+      `/integrations/spaces/${space.id}`,
+      jsonRequest("PATCH", { name }),
+    );
+    announceWorkspaceChange("integrations");
   }
 
   async function removeSpace(space: IntegrationSpace) {
-    if (!window.confirm(`Delete “${space.name}” and every folder and item inside it?`)) return;
-    await api(`/integrations/spaces/${space.id}`, { method: 'DELETE' });
-    announceWorkspaceChange('integrations');
-    navigate('/');
+    if (
+      !window.confirm(
+        `Delete “${space.name}” and every folder and item inside it?`,
+      )
+    )
+      return;
+    await api(`/integrations/spaces/${space.id}`, { method: "DELETE" });
+    announceWorkspaceChange("integrations");
+    navigate("/");
   }
 
   return (
-    <aside className={`fixed inset-y-0 left-0 z-30 flex w-60 flex-col border-r border-violet-700 bg-gradient-to-b from-violet-900 to-violet-950 text-violet-100 shadow-xl shadow-violet-950/10 transition-transform dark:border-violet-200 dark:from-[#f7f4ff] dark:to-[#ebe5fb] dark:text-violet-950 dark:shadow-black/20 sm:translate-x-0 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+    <aside
+      className={`fixed inset-y-0 left-0 z-30 flex w-60 flex-col border-r border-violet-700 bg-gradient-to-b from-violet-900 to-violet-950 text-violet-100 shadow-xl shadow-violet-950/10 transition-transform dark:border-violet-200 dark:from-[#f7f4ff] dark:to-[#ebe5fb] dark:text-violet-950 dark:shadow-black/20 sm:translate-x-0 ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}
+    >
       <div className="relative flex h-24 items-center justify-center border-b border-violet-700/70 px-3 dark:border-violet-200">
-        <button onClick={onProfile} aria-label="Open your profile" title="My profile" className="group rounded-2xl px-2 py-1 transition hover:-translate-y-0.5 hover:bg-violet-800/50 dark:hover:bg-white"><img src="/peanut-logo.png" alt="Peanut logo" className="h-auto w-[145px] shrink-0 drop-shadow-[0_8px_12px_rgba(20,10,55,0.24)] transition group-hover:scale-[1.02]" /></button>
-        <button onClick={onClose} aria-label="Close navigation" className="absolute right-3 top-3 rounded-lg p-1.5 text-violet-300 hover:bg-violet-800 dark:text-violet-500 dark:hover:bg-violet-100 sm:hidden"><X size={17} /></button>
+        <button
+          onClick={onProfile}
+          aria-label="Open your profile"
+          title="My profile"
+          className="group rounded-2xl px-2 py-1 transition hover:-translate-y-0.5 hover:bg-violet-800/50 dark:hover:bg-white"
+        >
+          <img
+            src="/peanut-logo.png"
+            alt="Peanut logo"
+            className="h-auto w-[145px] shrink-0 drop-shadow-[0_8px_12px_rgba(20,10,55,0.24)] transition group-hover:scale-[1.02]"
+          />
+        </button>
+        <button
+          onClick={onClose}
+          aria-label="Close navigation"
+          className="absolute right-3 top-3 rounded-lg p-1.5 text-violet-300 hover:bg-violet-800 dark:text-violet-500 dark:hover:bg-violet-100 sm:hidden"
+        >
+          <X size={17} />
+        </button>
       </div>
 
       <nav className="px-3 py-4">
-        <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-400 dark:text-violet-500">Workspace</p>
+        <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-400 dark:text-violet-500">
+          Workspace
+        </p>
         <div className="space-y-0.5">
           {navItems.map(({ to, label, icon: Icon, end }) => (
             <NavLink
@@ -113,53 +202,214 @@ function Sidebar({ mobileOpen, onClose, onProfile }: { mobileOpen: boolean; onCl
               to={to}
               end={end}
               onClick={onClose}
-              className={({ isActive }) => [
-                'flex items-center gap-3 rounded-md px-3 py-2 text-[13px] font-medium transition-colors',
-                isActive ? 'bg-violet-700 text-white shadow-sm ring-1 ring-violet-500/40 dark:bg-white dark:text-violet-800 dark:ring-violet-200' : 'text-violet-200 hover:translate-x-0.5 hover:bg-violet-800/70 hover:text-white dark:text-violet-700 dark:hover:bg-white dark:hover:text-violet-950',
-              ].join(' ')}
+              className={({ isActive }) =>
+                [
+                  "flex items-center gap-3 rounded-md px-3 py-2 text-[13px] font-medium transition-colors",
+                  isActive
+                    ? "bg-violet-700 text-white shadow-sm ring-1 ring-violet-500/40 dark:bg-white dark:text-violet-800 dark:ring-violet-200"
+                    : "text-violet-200 hover:translate-x-0.5 hover:bg-violet-800/70 hover:text-white dark:text-violet-700 dark:hover:bg-white dark:hover:text-violet-950",
+                ].join(" ")
+              }
             >
               <Icon size={16} strokeWidth={1.8} />
               {label}
             </NavLink>
           ))}
           <div className="!mt-3 flex items-center justify-between px-3 pb-1 pt-2">
-            <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-violet-400 dark:text-violet-500">Folder spaces</span>
-            <button onClick={() => void createSpace()} aria-label="Add folder section" className="rounded-md p-1 text-violet-300 hover:bg-violet-800 hover:text-white dark:text-violet-500 dark:hover:bg-white"><Plus size={13} /></button>
+            <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-violet-400 dark:text-violet-500">
+              Folder spaces
+            </span>
+            <button
+              onClick={() => void createSpace()}
+              aria-label="Add folder section"
+              className="rounded-md p-1 text-violet-300 hover:bg-violet-800 hover:text-white dark:text-violet-500 dark:hover:bg-white"
+            >
+              <Plus size={13} />
+            </button>
           </div>
           {spaces.map((space) => {
-            const activeSpace = location.pathname === '/integrations' && new URLSearchParams(location.search).get('space') === space.id;
-            return <div key={space.id} className={`group flex items-center rounded-md transition-colors ${activeSpace ? 'bg-violet-700 text-white shadow-sm ring-1 ring-violet-500/40 dark:bg-white dark:text-violet-800 dark:ring-violet-200' : 'text-violet-200 hover:bg-violet-800/70 hover:text-white dark:text-violet-700 dark:hover:bg-white dark:hover:text-violet-950'}`}>
-              <Link to={`/integrations?space=${space.id}`} onClick={onClose} className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2 text-[13px] font-medium"><FolderKanban size={16} strokeWidth={1.8} className="shrink-0" /><span className="truncate">{space.name}</span></Link>
-              <button onClick={() => void renameSpace(space)} aria-label={`Rename ${space.name}`} className="p-1 text-current opacity-0 transition hover:text-amber-300 group-hover:opacity-70"><Pencil size={12} /></button>
-              <button onClick={() => void removeSpace(space)} aria-label={`Delete ${space.name}`} className="mr-2 p-1 text-current opacity-0 transition hover:text-red-300 group-hover:opacity-70"><Trash2 size={12} /></button>
-            </div>;
+            const activeSpace =
+              location.pathname === "/integrations" &&
+              new URLSearchParams(location.search).get("space") === space.id;
+            return (
+              <div
+                key={space.id}
+                className={`group flex items-center rounded-md transition-colors ${activeSpace ? "bg-violet-700 text-white shadow-sm ring-1 ring-violet-500/40 dark:bg-white dark:text-violet-800 dark:ring-violet-200" : "text-violet-200 hover:bg-violet-800/70 hover:text-white dark:text-violet-700 dark:hover:bg-white dark:hover:text-violet-950"}`}
+              >
+                <Link
+                  to={`/integrations?space=${space.id}`}
+                  onClick={onClose}
+                  className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2 text-[13px] font-medium"
+                >
+                  <FolderKanban
+                    size={16}
+                    strokeWidth={1.8}
+                    className="shrink-0"
+                  />
+                  <span className="truncate">{space.name}</span>
+                </Link>
+                <button
+                  onClick={() => void renameSpace(space)}
+                  aria-label={`Rename ${space.name}`}
+                  className="p-1 text-current opacity-0 transition hover:text-amber-300 group-hover:opacity-70"
+                >
+                  <Pencil size={12} />
+                </button>
+                <button
+                  onClick={() => void removeSpace(space)}
+                  aria-label={`Delete ${space.name}`}
+                  className="mr-2 p-1 text-current opacity-0 transition hover:text-red-300 group-hover:opacity-70"
+                >
+                  <Trash2 size={12} />
+                </button>
+              </div>
+            );
           })}
         </div>
       </nav>
 
       <div className="min-h-0 flex-1 border-t border-violet-700/70 px-3 py-4 dark:border-violet-200">
-        <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-400 dark:text-violet-500">Categories</p>
+        <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-400 dark:text-violet-500">
+          Categories
+        </p>
         <div className="space-y-0.5">
           {categories.length === 0 ? (
-            <p className="px-3 py-2 text-xs leading-5 text-violet-400 dark:text-violet-500">Categories appear here as you use them.</p>
-          ) : categories.slice(0, 4).map((category) => (
-            <NavLink key={category.id} to={`/categories/${category.id}`} onClick={onClose} className={({ isActive }) => `flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-xs transition ${isActive ? 'bg-violet-700 font-semibold text-white dark:bg-white dark:text-violet-900' : 'text-violet-200 hover:bg-violet-800/60 dark:text-violet-700 dark:hover:bg-white'}`}>
-              <span className="h-1.5 w-1.5 rounded-full bg-teal-300" />
-              <span className="truncate">{category.name}</span>
-            </NavLink>
-          ))}
-          {categories.length > 4 && <button onClick={() => { setCategoryQuery(''); setCategoriesOpen(true); }} className="mt-2 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[11px] font-semibold text-violet-300 transition hover:bg-violet-800/60 hover:text-white dark:text-violet-500 dark:hover:bg-white dark:hover:text-violet-900"><Search size={13} /><span>View all categories</span><span className="ml-auto rounded-full bg-violet-800 px-2 py-0.5 text-[9px] text-violet-200 dark:bg-violet-100 dark:text-violet-600">{categories.length}</span></button>}
+            <p className="px-3 py-2 text-xs leading-5 text-violet-400 dark:text-violet-500">
+              Categories appear here as you use them.
+            </p>
+          ) : (
+            categories.slice(0, 4).map((category) => (
+              <NavLink
+                key={category.id}
+                to={`/categories/${category.id}`}
+                onClick={onClose}
+                className={({ isActive }) =>
+                  `flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-xs transition ${isActive ? "bg-violet-700 font-semibold text-white dark:bg-white dark:text-violet-900" : "text-violet-200 hover:bg-violet-800/60 dark:text-violet-700 dark:hover:bg-white"}`
+                }
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-teal-300" />
+                <span className="truncate">{category.name}</span>
+              </NavLink>
+            ))
+          )}
+          {categories.length > 4 && (
+            <button
+              onClick={() => {
+                setCategoryQuery("");
+                setCategoriesOpen(true);
+              }}
+              className="mt-2 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[11px] font-semibold text-violet-300 transition hover:bg-violet-800/60 hover:text-white dark:text-violet-500 dark:hover:bg-white dark:hover:text-violet-900"
+            >
+              <Search size={13} />
+              <span>View all categories</span>
+              <span className="ml-auto rounded-full bg-violet-800 px-2 py-0.5 text-[9px] text-violet-200 dark:bg-violet-100 dark:text-violet-600">
+                {categories.length}
+              </span>
+            </button>
+          )}
         </div>
       </div>
 
-      {categoriesOpen && <><button aria-label="Close categories" onClick={() => setCategoriesOpen(false)} className="fixed inset-0 z-40 cursor-default bg-violet-950/20 backdrop-blur-[1px]" /><section className="fixed bottom-5 left-3 z-50 w-[min(330px,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border border-violet-200 bg-white text-violet-950 shadow-2xl dark:border-violet-700 dark:bg-[#211b35] dark:text-white sm:left-5"><header className="flex items-center justify-between border-b border-violet-100 px-4 py-3 dark:border-violet-800"><div><h2 className="text-sm font-bold">All categories</h2><p className="mt-0.5 text-[10px] text-violet-400">Find and open a category</p></div><button onClick={() => setCategoriesOpen(false)} aria-label="Close" className="rounded-lg p-1.5 text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900"><X size={16} /></button></header><div className="p-3"><div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-violet-300" size={14} /><input autoFocus value={categoryQuery} onChange={(event) => setCategoryQuery(event.target.value)} placeholder="Search categories…" className="h-10 w-full rounded-xl border border-violet-200 bg-violet-50/60 pl-9 pr-3 text-xs outline-none focus:border-violet-400 dark:border-violet-700 dark:bg-violet-950" /></div><div className="mt-2 max-h-72 space-y-1 overflow-y-auto pr-1">{categories.filter((category) => category.name.toLocaleLowerCase().includes(categoryQuery.trim().toLocaleLowerCase())).map((category) => <NavLink key={category.id} to={`/categories/${category.id}`} onClick={() => { setCategoriesOpen(false); onClose(); }} className={({ isActive }) => `flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-medium transition ${isActive ? 'bg-violet-100 text-violet-800 dark:bg-violet-700 dark:text-white' : 'text-violet-700 hover:bg-violet-50 dark:text-violet-200 dark:hover:bg-violet-900'}`}><span className="h-2 w-2 shrink-0 rounded-full bg-teal-400" /><span className="min-w-0 flex-1 truncate">{category.name}</span></NavLink>)}</div></div></section></>}
+      <div className="border-t border-violet-700/70 p-3 dark:border-violet-200">
+        <button
+          type="button"
+          disabled={signingOut}
+          onClick={() => {
+            if (session) void signOutFromSidebar();
+            else onSignIn();
+          }}
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-xs font-semibold text-violet-200 transition hover:bg-violet-800/70 hover:text-white disabled:opacity-50 dark:text-violet-700 dark:hover:bg-white dark:hover:text-violet-950"
+        >
+          {session ? <LogOut size={16} /> : <LogIn size={16} />}
+          <span>{signingOut ? "Signing out…" : session ? "Sign out" : "Sign in"}</span>
+          {session && (
+            <span className="ml-auto h-2 w-2 rounded-full bg-teal-300" />
+          )}
+        </button>
+      </div>
+
+      {categoriesOpen && (
+        <>
+          <button
+            aria-label="Close categories"
+            onClick={() => setCategoriesOpen(false)}
+            className="fixed inset-0 z-40 cursor-default bg-violet-950/20 backdrop-blur-[1px]"
+          />
+          <section className="fixed bottom-5 left-3 z-50 w-[min(330px,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border border-violet-200 bg-white text-violet-950 shadow-2xl dark:border-violet-700 dark:bg-[#211b35] dark:text-white sm:left-5">
+            <header className="flex items-center justify-between border-b border-violet-100 px-4 py-3 dark:border-violet-800">
+              <div>
+                <h2 className="text-sm font-bold">All categories</h2>
+                <p className="mt-0.5 text-[10px] text-violet-400">
+                  Find and open a category
+                </p>
+              </div>
+              <button
+                onClick={() => setCategoriesOpen(false)}
+                aria-label="Close"
+                className="rounded-lg p-1.5 text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900"
+              >
+                <X size={16} />
+              </button>
+            </header>
+            <div className="p-3">
+              <div className="relative">
+                <Search
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-violet-300"
+                  size={14}
+                />
+                <input
+                  autoFocus
+                  value={categoryQuery}
+                  onChange={(event) => setCategoryQuery(event.target.value)}
+                  placeholder="Search categories…"
+                  className="h-10 w-full rounded-xl border border-violet-200 bg-violet-50/60 pl-9 pr-3 text-xs outline-none focus:border-violet-400 dark:border-violet-700 dark:bg-violet-950"
+                />
+              </div>
+              <div className="mt-2 max-h-72 space-y-1 overflow-y-auto pr-1">
+                {categories
+                  .filter((category) =>
+                    category.name
+                      .toLocaleLowerCase()
+                      .includes(categoryQuery.trim().toLocaleLowerCase()),
+                  )
+                  .map((category) => (
+                    <NavLink
+                      key={category.id}
+                      to={`/categories/${category.id}`}
+                      onClick={() => {
+                        setCategoriesOpen(false);
+                        onClose();
+                      }}
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-medium transition ${isActive ? "bg-violet-100 text-violet-800 dark:bg-violet-700 dark:text-white" : "text-violet-700 hover:bg-violet-50 dark:text-violet-200 dark:hover:bg-violet-900"}`
+                      }
+                    >
+                      <span className="h-2 w-2 shrink-0 rounded-full bg-teal-400" />
+                      <span className="min-w-0 flex-1 truncate">
+                        {category.name}
+                      </span>
+                    </NavLink>
+                  ))}
+              </div>
+            </div>
+          </section>
+        </>
+      )}
     </aside>
   );
 }
 
-function Topbar({ onMenu, dark, onToggleTheme }: { onMenu: () => void; dark: boolean; onToggleTheme: () => void }) {
+function Topbar({
+  onMenu,
+  dark,
+  onToggleTheme,
+}: {
+  onMenu: () => void;
+  dark: boolean;
+  onToggleTheme: () => void;
+}) {
   const navigate = useNavigate();
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState("");
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -169,18 +419,35 @@ function Topbar({ onMenu, dark, onToggleTheme }: { onMenu: () => void; dark: boo
 
   return (
     <header className="fixed left-0 right-0 top-0 z-20 flex h-16 items-center border-b border-violet-100/80 bg-[#fffdf9]/85 px-4 shadow-[0_1px_12px_rgba(82,65,168,0.04)] backdrop-blur-xl dark:border-violet-800 dark:bg-[#1d1830]/85 sm:left-60 sm:px-5 lg:px-8">
-      <button onClick={onMenu} aria-label="Open navigation" className="mr-3 rounded-lg p-2 text-violet-500 hover:bg-violet-50 dark:text-violet-300 dark:hover:bg-violet-800 sm:hidden"><Menu size={19} /></button>
+      <button
+        onClick={onMenu}
+        aria-label="Open navigation"
+        className="mr-3 rounded-lg p-2 text-violet-500 hover:bg-violet-50 dark:text-violet-300 dark:hover:bg-violet-800 sm:hidden"
+      >
+        <Menu size={19} />
+      </button>
       <form onSubmit={submit} className="relative w-full max-w-xl">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+        <Search
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+          size={16}
+        />
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder='Search documents, notes, tags…  Try "exact phrase" AND API'
           className="h-9 w-full rounded-xl border border-violet-200 bg-white pl-9 pr-12 text-[13px] text-violet-950 outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100 dark:border-violet-700 dark:bg-violet-950 dark:text-violet-50"
         />
-        <kbd className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] text-slate-400">↵</kbd>
+        <kbd className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] text-slate-400">
+          ↵
+        </kbd>
       </form>
-      <button onClick={onToggleTheme} aria-label={dark ? 'Use light mode' : 'Use dark mode'} className="ml-3 rounded-xl p-2 text-violet-500 hover:bg-violet-50 dark:text-violet-300 dark:hover:bg-violet-800">{dark ? <Sun size={17} /> : <Moon size={17} />}</button>
+      <button
+        onClick={onToggleTheme}
+        aria-label={dark ? "Use light mode" : "Use dark mode"}
+        className="ml-3 rounded-xl p-2 text-violet-500 hover:bg-violet-50 dark:text-violet-300 dark:hover:bg-violet-800"
+      >
+        {dark ? <Sun size={17} /> : <Moon size={17} />}
+      </button>
       <div className="ml-auto hidden pl-4 text-xs font-medium text-teal-700 sm:block">
         <span className="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-teal-500" />
         Local
@@ -192,7 +459,7 @@ function Topbar({ onMenu, dark, onToggleTheme }: { onMenu: () => void; dark: boo
 
 function taskDay(value: string): string {
   const date = new Date(value);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
 function TaskNotifications() {
@@ -203,50 +470,170 @@ function TaskNotifications() {
 
   useEffect(() => {
     let active = true;
-    const load = () => api<{ tasks: Task[] }>('/tasks').then((result) => { if (active) setTasks(result.tasks); }).catch(() => undefined);
+    const load = () =>
+      api<{ tasks: Task[] }>("/tasks")
+        .then((result) => {
+          if (active) setTasks(result.tasks);
+        })
+        .catch(() => undefined);
     void load();
     const refreshTimer = window.setInterval(() => void load(), 10 * 60_000);
     const clockTimer = window.setInterval(() => setNow(Date.now()), 60_000);
-    const unsubscribe = onWorkspaceChange((resources) => { if (resources.includes('tasks')) void load(); });
-    const refreshOnFocus = () => { setNow(Date.now()); void load(); };
-    const refreshWhenVisible = () => { if (document.visibilityState === 'visible') refreshOnFocus(); };
-    window.addEventListener('focus', refreshOnFocus);
-    document.addEventListener('visibilitychange', refreshWhenVisible);
+    const unsubscribe = onWorkspaceChange((resources) => {
+      if (resources.includes("tasks")) void load();
+    });
+    const refreshOnFocus = () => {
+      setNow(Date.now());
+      void load();
+    };
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") refreshOnFocus();
+    };
+    window.addEventListener("focus", refreshOnFocus);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
     return () => {
       active = false;
       window.clearInterval(refreshTimer);
       window.clearInterval(clockTimer);
       unsubscribe();
-      window.removeEventListener('focus', refreshOnFocus);
-      document.removeEventListener('visibilitychange', refreshWhenVisible);
+      window.removeEventListener("focus", refreshOnFocus);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
     };
   }, []);
 
   const today = taskDay(new Date(now).toISOString());
-  const reminders = tasks.filter((task) => !task.completedAt && task.dueAt && taskDay(task.dueAt) <= today);
-  const overdue = reminders.filter((task) => task.dueAt && taskDay(task.dueAt) < today);
-  const dueToday = reminders.filter((task) => task.dueAt && taskDay(task.dueAt) === today);
+  const reminders = tasks.filter(
+    (task) => !task.completedAt && task.dueAt && taskDay(task.dueAt) <= today,
+  );
+  const overdue = reminders.filter(
+    (task) => task.dueAt && taskDay(task.dueAt) < today,
+  );
+  const dueToday = reminders.filter(
+    (task) => task.dueAt && taskDay(task.dueAt) === today,
+  );
 
   async function toggleNotifications() {
     const nextOpen = !open;
     setOpen(nextOpen);
-    if (!nextOpen || reminders.length === 0 || !('Notification' in window)) return;
+    if (!nextOpen || reminders.length === 0 || !("Notification" in window))
+      return;
     let permission = Notification.permission;
-    if (permission === 'default') permission = await Notification.requestPermission();
+    if (permission === "default")
+      permission = await Notification.requestPermission();
     const storageKey = `pinit-task-reminder-${today}`;
-    if (permission === 'granted' && !sessionStorage.getItem(storageKey)) {
-      new Notification('Peanut task reminders', {
+    if (permission === "granted" && !sessionStorage.getItem(storageKey)) {
+      new Notification("Peanut task reminders", {
         body: `${overdue.length} overdue · ${dueToday.length} due today`,
-        icon: '/peanut-logo.png',
+        icon: "/peanut-logo.png",
       });
-      sessionStorage.setItem(storageKey, 'shown');
+      sessionStorage.setItem(storageKey, "shown");
     }
   }
 
   return (
     <div className="relative ml-2">
-      <button onClick={() => void toggleNotifications()} aria-label="Task notifications" className="relative rounded-xl p-2 text-violet-500 hover:bg-violet-50 dark:text-violet-300 dark:hover:bg-violet-800"><Bell size={18} />{reminders.length > 0 && <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-coral-500 px-1 text-[9px] font-bold text-white">{reminders.length > 9 ? '9+' : reminders.length}</span>}</button>
-      {open && <><button aria-label="Close notifications" onClick={() => setOpen(false)} className="fixed inset-0 z-40 cursor-default" /><section className="absolute right-0 top-12 z-50 w-[min(340px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-violet-100 bg-white shadow-2xl dark:border-violet-700 dark:bg-[#211b35]"><header className="flex items-center justify-between border-b border-violet-100 px-4 py-3 dark:border-violet-800"><div><h2 className="text-sm font-semibold text-violet-950 dark:text-white">Task reminders</h2><p className="mt-0.5 text-[10px] text-violet-400">Today and overdue</p></div>{reminders.length > 0 && <span className="rounded-full bg-coral-50 px-2 py-1 text-[10px] font-bold text-coral-600 dark:bg-coral-950">{reminders.length}</span>}</header><div className="max-h-80 overflow-auto p-2">{reminders.length === 0 ? <div className="px-4 py-8 text-center"><CheckCircle2 className="mx-auto mb-2 text-teal-400" size={24} /><p className="text-xs font-semibold text-violet-800 dark:text-violet-100">You’re all caught up</p><p className="mt-1 text-[10px] text-violet-400">No tasks due today or overdue.</p></div> : reminders.map((task) => { const isOverdue = Boolean(task.dueAt && taskDay(task.dueAt) < today); return <button key={task.id} onClick={() => { setOpen(false); navigate('/tasks'); }} className="flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left hover:bg-violet-50 dark:hover:bg-violet-900"><div className={`mt-0.5 rounded-lg p-1.5 ${isOverdue ? 'bg-red-50 text-red-500 dark:bg-red-950' : 'bg-amber-50 text-amber-500 dark:bg-amber-950'}`}>{isOverdue ? <AlertTriangle size={14} /> : <Bell size={14} />}</div><div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold text-violet-900 dark:text-violet-100">{task.title}</p><p className={`mt-1 text-[10px] font-medium ${isOverdue ? 'text-red-500' : 'text-amber-600'}`}>{isOverdue ? 'Overdue' : 'Due today'}{task.dueAt ? ` · ${new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(new Date(task.dueAt))}` : ''}</p></div></button>; })}</div><button onClick={() => { setOpen(false); navigate('/tasks'); }} className="w-full border-t border-violet-100 px-4 py-3 text-xs font-semibold text-violet-600 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-300 dark:hover:bg-violet-900">View all tasks</button></section></>}
+      <button
+        onClick={() => void toggleNotifications()}
+        aria-label="Task notifications"
+        className="relative rounded-xl p-2 text-violet-500 hover:bg-violet-50 dark:text-violet-300 dark:hover:bg-violet-800"
+      >
+        <Bell size={18} />
+        {reminders.length > 0 && (
+          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-coral-500 px-1 text-[9px] font-bold text-white">
+            {reminders.length > 9 ? "9+" : reminders.length}
+          </span>
+        )}
+      </button>
+      {open && (
+        <>
+          <button
+            aria-label="Close notifications"
+            onClick={() => setOpen(false)}
+            className="fixed inset-0 z-40 cursor-default"
+          />
+          <section className="absolute right-0 top-12 z-50 w-[min(340px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-violet-100 bg-white shadow-2xl dark:border-violet-700 dark:bg-[#211b35]">
+            <header className="flex items-center justify-between border-b border-violet-100 px-4 py-3 dark:border-violet-800">
+              <div>
+                <h2 className="text-sm font-semibold text-violet-950 dark:text-white">
+                  Task reminders
+                </h2>
+                <p className="mt-0.5 text-[10px] text-violet-400">
+                  Today and overdue
+                </p>
+              </div>
+              {reminders.length > 0 && (
+                <span className="rounded-full bg-coral-50 px-2 py-1 text-[10px] font-bold text-coral-600 dark:bg-coral-950">
+                  {reminders.length}
+                </span>
+              )}
+            </header>
+            <div className="max-h-80 overflow-auto p-2">
+              {reminders.length === 0 ? (
+                <div className="px-4 py-8 text-center">
+                  <CheckCircle2
+                    className="mx-auto mb-2 text-teal-400"
+                    size={24}
+                  />
+                  <p className="text-xs font-semibold text-violet-800 dark:text-violet-100">
+                    You’re all caught up
+                  </p>
+                  <p className="mt-1 text-[10px] text-violet-400">
+                    No tasks due today or overdue.
+                  </p>
+                </div>
+              ) : (
+                reminders.map((task) => {
+                  const isOverdue = Boolean(
+                    task.dueAt && taskDay(task.dueAt) < today,
+                  );
+                  return (
+                    <button
+                      key={task.id}
+                      onClick={() => {
+                        setOpen(false);
+                        navigate("/tasks");
+                      }}
+                      className="flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left hover:bg-violet-50 dark:hover:bg-violet-900"
+                    >
+                      <div
+                        className={`mt-0.5 rounded-lg p-1.5 ${isOverdue ? "bg-red-50 text-red-500 dark:bg-red-950" : "bg-amber-50 text-amber-500 dark:bg-amber-950"}`}
+                      >
+                        {isOverdue ? (
+                          <AlertTriangle size={14} />
+                        ) : (
+                          <Bell size={14} />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-semibold text-violet-900 dark:text-violet-100">
+                          {task.title}
+                        </p>
+                        <p
+                          className={`mt-1 text-[10px] font-medium ${isOverdue ? "text-red-500" : "text-amber-600"}`}
+                        >
+                          {isOverdue ? "Overdue" : "Due today"}
+                          {task.dueAt
+                            ? ` · ${new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" }).format(new Date(task.dueAt))}`
+                            : ""}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+            <button
+              onClick={() => {
+                setOpen(false);
+                navigate("/tasks");
+              }}
+              className="w-full border-t border-violet-100 px-4 py-3 text-xs font-semibold text-violet-600 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-300 dark:hover:bg-violet-900"
+            >
+              View all tasks
+            </button>
+          </section>
+        </>
+      )}
     </div>
   );
 }
@@ -254,49 +641,105 @@ function TaskNotifications() {
 export function AppShell({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [dark, setDark] = useState(() => (localStorage.getItem('peanut-theme') ?? localStorage.getItem('apotheke-theme')) === 'dark');
+  const [profileMode, setProfileMode] = useState<"profile" | "signIn">(
+    "profile",
+  );
+  const [dark, setDark] = useState(
+    () =>
+      (localStorage.getItem("peanut-theme") ??
+        localStorage.getItem("apotheke-theme")) === "dark",
+  );
 
   useEffect(() => {
-    document.documentElement.classList.toggle('dark', dark);
-    localStorage.setItem('peanut-theme', dark ? 'dark' : 'light');
-    localStorage.removeItem('apotheke-theme');
+    document.documentElement.classList.toggle("dark", dark);
+    localStorage.setItem("peanut-theme", dark ? "dark" : "light");
+    localStorage.removeItem("apotheke-theme");
   }, [dark]);
 
   return (
     <div className="min-h-screen bg-[#fffaf3] dark:bg-[#171329]">
-      {mobileOpen && <button aria-label="Close navigation" onClick={() => setMobileOpen(false)} className="fixed inset-0 z-20 bg-violet-950/50 sm:hidden" />}
-      <Sidebar mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} onProfile={() => { setMobileOpen(false); setProfileOpen(true); }} />
-      <Topbar onMenu={() => setMobileOpen(true)} dark={dark} onToggleTheme={() => setDark((value) => !value)} />
+      {mobileOpen && (
+        <button
+          aria-label="Close navigation"
+          onClick={() => setMobileOpen(false)}
+          className="fixed inset-0 z-20 bg-violet-950/50 sm:hidden"
+        />
+      )}
+      <Sidebar
+        mobileOpen={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+        onProfile={() => {
+          setMobileOpen(false);
+          setProfileMode("profile");
+          setProfileOpen(true);
+        }}
+        onSignIn={() => {
+          setMobileOpen(false);
+          setProfileMode("signIn");
+          setProfileOpen(true);
+        }}
+      />
+      <Topbar
+        onMenu={() => setMobileOpen(true)}
+        dark={dark}
+        onToggleTheme={() => setDark((value) => !value)}
+      />
       <main className="pt-16 sm:ml-60">
-        <div className="app-content mx-auto max-w-[1440px] p-4 sm:p-6 lg:p-8">{children}</div>
+        <div className="app-content mx-auto max-w-[1440px] p-4 sm:p-6 lg:p-8">
+          {children}
+        </div>
       </main>
       <PiniAssistant />
       <CommandPalette />
-      {profileOpen && <ProfileModal onClose={() => setProfileOpen(false)} />}
+      {profileOpen && (
+        <ProfileModal
+          initialAuthMode={profileMode}
+          onClose={() => setProfileOpen(false)}
+        />
+      )}
     </div>
   );
 }
 
-const emptyProfile: UserProfile = { name: '', email: '', role: '', bio: '', updatedAt: '' };
+const emptyProfile: UserProfile = {
+  name: "",
+  email: "",
+  role: "",
+  bio: "",
+  updatedAt: "",
+};
 
-function ProfileModal({ onClose }: { onClose: () => void }) {
-  const { data: session, isPending: sessionPending, refetch: refetchSession } = authClient.useSession();
+function ProfileModal({
+  onClose,
+  initialAuthMode = "profile",
+}: {
+  onClose: () => void;
+  initialAuthMode?: "profile" | "signIn";
+}) {
+  const {
+    data: session,
+    isPending: sessionPending,
+    refetch: refetchSession,
+  } = authClient.useSession();
   const [profile, setProfile] = useState<UserProfile>(emptyProfile);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [error, setError] = useState('');
-  const [authMode, setAuthMode] = useState<'profile' | 'signIn' | 'signUp'>('profile');
-  const [authName, setAuthName] = useState('');
-  const [authEmail, setAuthEmail] = useState('');
-  const [authPassword, setAuthPassword] = useState('');
+  const [error, setError] = useState("");
+  const [authMode, setAuthMode] = useState<"profile" | "signIn" | "signUp">(
+    initialAuthMode,
+  );
+  const [authName, setAuthName] = useState("");
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
   const [authBusy, setAuthBusy] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   async function loadProfile() {
     setLoading(true);
-    setError('');
+    setError("");
     try {
-      const result = await api<{ profile: UserProfile }>('/profile');
+      const result = await api<{ profile: UserProfile }>("/profile");
       setProfile(result.profile);
     } catch (reason) {
       setError((reason as Error).message);
@@ -310,29 +753,61 @@ function ProfileModal({ onClose }: { onClose: () => void }) {
   }, []);
 
   async function saveProfile(event: FormEvent) {
-    event.preventDefault(); setSaving(true); setSaved(false); setError('');
+    event.preventDefault();
+    setSaving(true);
+    setSaved(false);
+    setError("");
     try {
-      const result = await api<{ profile: UserProfile }>('/profile', jsonRequest('PATCH', { name: profile.name, email: profile.email, role: profile.role, bio: profile.bio }));
-      setProfile(result.profile); setSaved(true);
-    } catch (reason) { setError((reason as Error).message); }
-    finally { setSaving(false); }
+      const result = await api<{ profile: UserProfile }>(
+        "/profile",
+        jsonRequest("PATCH", {
+          name: profile.name,
+          email: profile.email,
+          role: profile.role,
+          bio: profile.bio,
+        }),
+      );
+      setProfile(result.profile);
+      setSaved(true);
+    } catch (reason) {
+      setError((reason as Error).message);
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function submitAuth(event: FormEvent) {
     event.preventDefault();
     setAuthBusy(true);
-    setError('');
+    setError("");
     try {
-      const result = authMode === 'signUp'
-        ? await authClient.signUp.email({ name: authName.trim(), email: authEmail.trim(), password: authPassword })
-        : await authClient.signIn.email({ email: authEmail.trim(), password: authPassword });
-      if (result.error) throw new Error(result.error.message ?? 'Peanut could not sign you in.');
+      const result =
+        authMode === "signUp"
+          ? await authClient.signUp.email({
+              name: authName.trim(),
+              email: authEmail.trim(),
+              password: authPassword,
+            })
+          : await authClient.signIn.email({
+              email: authEmail.trim(),
+              password: authPassword,
+            });
+      if (result.error)
+        throw new Error(
+          result.error.message ?? "Peanut could not sign you in.",
+        );
       await refetchSession();
       await loadProfile();
       announceAuthChange();
-      announceWorkspaceChange('notes', 'categories', 'tasks', 'integrations', 'documents');
-      setAuthMode('profile');
-      setAuthPassword('');
+      announceWorkspaceChange(
+        "notes",
+        "categories",
+        "tasks",
+        "integrations",
+        "documents",
+      );
+      setAuthMode("profile");
+      setAuthPassword("");
     } catch (reason) {
       setError((reason as Error).message);
     } finally {
@@ -340,27 +815,432 @@ function ProfileModal({ onClose }: { onClose: () => void }) {
     }
   }
 
-  async function signOut() {
-    setAuthBusy(true);
-    setError('');
-    const result = await authClient.signOut();
-    if (result.error) setError(result.error.message ?? 'Peanut could not sign you out.');
-    await refetchSession();
-    await loadProfile();
+  async function deleteAccount(password: string) {
+    const result = await authClient.deleteUser({ password });
+    if (result.error)
+      throw new Error(
+        result.error.message ?? "Peanut could not delete your account.",
+      );
+    localStorage.removeItem("peanut-guest-workspace");
     announceAuthChange();
-    announceWorkspaceChange('notes', 'categories', 'tasks', 'integrations', 'documents');
-    setAuthBusy(false);
+    announceWorkspaceChange(
+      "notes",
+      "categories",
+      "tasks",
+      "integrations",
+      "documents",
+    );
+    window.location.assign("/");
   }
 
-  const displayName = session?.user.name || profile.name || 'Your profile';
-  const initials = displayName.trim().split(/\s+/u).slice(0, 2).map((part) => part[0]?.toLocaleUpperCase()).join('') || 'P';
+  const displayName = session?.user.name || profile.name || "Your profile";
+  const initials =
+    displayName
+      .trim()
+      .split(/\s+/u)
+      .slice(0, 2)
+      .map((part) => part[0]?.toLocaleUpperCase())
+      .join("") || "P";
   const waiting = loading || sessionPending;
 
-  return <div className="fixed inset-0 z-[90] flex items-center justify-center bg-violet-950/45 p-4 backdrop-blur-sm"><button onClick={onClose} aria-label="Close profile" className="absolute inset-0 cursor-default" /><section className="relative w-full max-w-xl overflow-hidden rounded-[28px] border border-violet-200 bg-[#fffdf9] shadow-2xl dark:border-violet-700 dark:bg-[#211b35]"><header className="relative overflow-hidden border-b border-violet-100 bg-gradient-to-r from-amber-50 via-orange-50 to-violet-100 px-6 py-5 dark:border-violet-800 dark:from-amber-950/30 dark:via-[#312039] dark:to-violet-950"><div className="absolute -right-6 -top-10 h-32 w-36 rounded-full bg-teal-200/70 dark:bg-teal-800/50" /><button onClick={onClose} aria-label="Close" className="absolute right-4 top-4 z-10 rounded-xl p-2 text-violet-400 hover:bg-white/70 dark:hover:bg-violet-800"><X size={17} /></button><div className="relative flex items-center gap-4"><div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[22px] bg-violet-700 font-serif text-xl font-bold text-white shadow-lg">{initials}</div><div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-coral-600">Peanut profile</p><h2 className="mt-1 truncate font-serif text-2xl font-bold text-violet-950 dark:text-white">{authMode === 'signIn' ? 'Welcome back' : authMode === 'signUp' ? 'Create your account' : displayName}</h2><p className="mt-1 text-xs text-violet-500 dark:text-violet-300">{session ? 'Cloud account · ready for sync.' : 'Guest mode · your workspace stays on this device.'}</p></div></div></header>{waiting ? <div className="flex min-h-72 items-center justify-center text-sm text-violet-400">Loading profile…</div> : authMode !== 'profile' ? <form onSubmit={submitAuth} className="space-y-4 p-6">{authMode === 'signUp' && <ProfileField icon={<UserRound size={15} />} label="Name" value={authName} onChange={setAuthName} placeholder="Your name" autoFocus />}<ProfileField icon={<Mail size={15} />} label="Email" value={authEmail} onChange={setAuthEmail} type="email" placeholder="you@example.com" autoFocus={authMode === 'signIn'} /><ProfileField icon={<LockKeyhole size={15} />} label="Password" value={authPassword} onChange={setAuthPassword} type="password" placeholder="At least 10 characters" />{error && <p className="rounded-xl bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-950/40 dark:text-red-300">{error}</p>}<p className="text-[11px] leading-5 text-violet-400">Signing in enables cloud sync later. Your current local files are not uploaded automatically.</p><div className="flex items-center justify-between pt-1"><button type="button" onClick={() => { setAuthMode('profile'); setError(''); }} className="rounded-xl border border-violet-200 px-4 py-2.5 text-xs font-semibold text-violet-500 dark:border-violet-700 dark:text-violet-300">Back</button><button disabled={authBusy || authPassword.length < 10 || !authEmail.trim() || (authMode === 'signUp' && !authName.trim())} className="flex items-center gap-2 rounded-xl bg-violet-700 px-5 py-2.5 text-xs font-bold text-white hover:bg-violet-800 disabled:opacity-40"><LogIn size={14} />{authBusy ? 'Please wait…' : authMode === 'signUp' ? 'Create account' : 'Sign in'}</button></div></form> : <form onSubmit={saveProfile} className="space-y-4 p-6">{session ? <div className="flex items-center gap-3 rounded-2xl border border-teal-200 bg-teal-50 px-4 py-3 dark:border-teal-800 dark:bg-teal-950/30"><Cloud size={18} className="shrink-0 text-teal-600" /><div className="min-w-0 flex-1"><p className="text-xs font-bold text-teal-800 dark:text-teal-200">Signed in</p><p className="mt-0.5 truncate text-[11px] text-teal-600 dark:text-teal-300">{session.user.email}</p></div></div> : <div className="rounded-2xl border border-violet-200 bg-violet-50/60 p-4 dark:border-violet-700 dark:bg-violet-950/40"><div className="flex items-start gap-3"><Cloud size={18} className="mt-0.5 text-violet-500" /><div><p className="text-xs font-bold text-violet-900 dark:text-violet-100">Use Peanut on more devices</p><p className="mt-1 text-[11px] leading-5 text-violet-500 dark:text-violet-300">Create an optional account to enable secure cloud sync later.</p></div></div><div className="mt-3 flex gap-2"><button type="button" onClick={() => { setAuthMode('signIn'); setError(''); }} className="rounded-xl border border-violet-200 bg-white px-4 py-2 text-xs font-semibold text-violet-700 dark:border-violet-700 dark:bg-violet-900 dark:text-violet-100">Sign in</button><button type="button" onClick={() => { setAuthMode('signUp'); setError(''); }} className="rounded-xl bg-violet-700 px-4 py-2 text-xs font-bold text-white hover:bg-violet-800">Create account</button></div></div>}<ProfileField icon={<UserRound size={15} />} label="Name" value={profile.name} onChange={(value) => setProfile((current) => ({ ...current, name: value }))} placeholder="Your name" /><ProfileField icon={<Briefcase size={15} />} label="Role or title" value={profile.role} onChange={(value) => setProfile((current) => ({ ...current, role: value }))} placeholder="e.g. Developer, Student" /><label className="block"><span className="mb-1.5 block text-xs font-semibold text-violet-600 dark:text-violet-300">About me</span><textarea value={profile.bio} onChange={(event) => setProfile((current) => ({ ...current, bio: event.target.value }))} placeholder="A few details about you…" className="min-h-24 w-full resize-none rounded-xl border border-violet-200 bg-white px-3 py-2.5 text-sm text-violet-900 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 dark:border-violet-700 dark:bg-violet-950 dark:text-violet-100" /></label>{error && <p className="rounded-xl bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-950/40 dark:text-red-300">{error}</p>}{saved && <p className="rounded-xl bg-teal-50 px-3 py-2 text-xs font-semibold text-teal-700 dark:bg-teal-950/40 dark:text-teal-300">Profile saved.</p>}<div className="flex items-center justify-between gap-2 pt-1">{session ? <button type="button" disabled={authBusy} onClick={() => void signOut()} className="flex items-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-semibold text-violet-500 hover:bg-violet-50 disabled:opacity-40 dark:text-violet-300 dark:hover:bg-violet-900"><LogOut size={14} />Sign out</button> : <span />}<div className="flex gap-2"><button type="button" onClick={onClose} className="rounded-xl border border-violet-200 px-4 py-2.5 text-xs font-semibold text-violet-500 dark:border-violet-700 dark:text-violet-300">Close</button><button disabled={saving} className="flex items-center gap-2 rounded-xl bg-coral-500 px-4 py-2.5 text-xs font-bold text-white hover:bg-coral-600 disabled:opacity-50"><Save size={14} />{saving ? 'Saving…' : 'Save profile'}</button></div></div></form>}</section></div>;
+  return (
+    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-violet-950/45 p-4 backdrop-blur-sm">
+      <button
+        onClick={onClose}
+        aria-label="Close profile"
+        className="absolute inset-0 cursor-default"
+      />
+      <section className="relative w-full max-w-xl overflow-hidden rounded-[28px] border border-violet-200 bg-[#fffdf9] shadow-2xl dark:border-violet-700 dark:bg-[#211b35]">
+        <header className="relative overflow-hidden border-b border-violet-100 bg-gradient-to-r from-amber-50 via-orange-50 to-violet-100 px-6 py-5 dark:border-violet-800 dark:from-amber-950/30 dark:via-[#312039] dark:to-violet-950">
+          <div className="absolute -right-6 -top-10 h-32 w-36 rounded-full bg-teal-200/70 dark:bg-teal-800/50" />
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="absolute right-4 top-4 z-10 rounded-xl p-2 text-violet-400 hover:bg-white/70 dark:hover:bg-violet-800"
+          >
+            <X size={17} />
+          </button>
+          <div className="relative flex items-center gap-4">
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[22px] bg-violet-700 font-serif text-xl font-bold text-white shadow-lg">
+              {initials}
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-coral-600">
+                Peanut profile
+              </p>
+              <h2 className="mt-1 truncate font-serif text-2xl font-bold text-violet-950 dark:text-white">
+                {authMode === "signIn"
+                  ? "Welcome back"
+                  : authMode === "signUp"
+                    ? "Create your account"
+                    : displayName}
+              </h2>
+              <p className="mt-1 text-xs text-violet-500 dark:text-violet-300">
+                {session
+                  ? "Cloud account · ready for sync."
+                  : "Guest mode · your workspace stays on this device."}
+              </p>
+            </div>
+          </div>
+        </header>
+        {waiting ? (
+          <div className="flex min-h-72 items-center justify-center text-sm text-violet-400">
+            Loading profile…
+          </div>
+        ) : authMode !== "profile" ? (
+          <form onSubmit={submitAuth} className="space-y-4 p-6">
+            {authMode === "signUp" && (
+              <ProfileField
+                icon={<UserRound size={15} />}
+                label="Name"
+                value={authName}
+                onChange={setAuthName}
+                placeholder="Your name"
+                autoFocus
+              />
+            )}
+            <ProfileField
+              icon={<Mail size={15} />}
+              label="Email"
+              value={authEmail}
+              onChange={setAuthEmail}
+              type="email"
+              placeholder="you@example.com"
+              autoFocus={authMode === "signIn"}
+            />
+            <ProfileField
+              icon={<LockKeyhole size={15} />}
+              label="Password"
+              value={authPassword}
+              onChange={setAuthPassword}
+              type="password"
+              placeholder="At least 10 characters"
+            />
+            {error && (
+              <p className="rounded-xl bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-950/40 dark:text-red-300">
+                {error}
+              </p>
+            )}
+            <p className="text-[11px] leading-5 text-violet-400">
+              Signing in enables cloud sync later. Your current local files are
+              not uploaded automatically.
+            </p>
+            <div className="flex items-center justify-between pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMode("profile");
+                  setError("");
+                }}
+                className="rounded-xl border border-violet-200 px-4 py-2.5 text-xs font-semibold text-violet-500 dark:border-violet-700 dark:text-violet-300"
+              >
+                Back
+              </button>
+              <button
+                disabled={
+                  authBusy ||
+                  authPassword.length < 10 ||
+                  !authEmail.trim() ||
+                  (authMode === "signUp" && !authName.trim())
+                }
+                className="flex items-center gap-2 rounded-xl bg-violet-700 px-5 py-2.5 text-xs font-bold text-white hover:bg-violet-800 disabled:opacity-40"
+              >
+                <LogIn size={14} />
+                {authBusy
+                  ? "Please wait…"
+                  : authMode === "signUp"
+                    ? "Create account"
+                    : "Sign in"}
+              </button>
+            </div>
+          </form>
+        ) : (
+          <form onSubmit={saveProfile} className="space-y-4 p-6">
+            {session ? (
+              <div className="flex items-center gap-3 rounded-2xl border border-teal-200 bg-teal-50 px-4 py-3 dark:border-teal-800 dark:bg-teal-950/30">
+                <Cloud size={18} className="shrink-0 text-teal-600" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-teal-800 dark:text-teal-200">
+                    Signed in
+                  </p>
+                  <p className="mt-0.5 truncate text-[11px] text-teal-600 dark:text-teal-300">
+                    {session.user.email}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-violet-200 bg-violet-50/60 p-4 dark:border-violet-700 dark:bg-violet-950/40">
+                <div className="flex items-start gap-3">
+                  <Cloud size={18} className="mt-0.5 text-violet-500" />
+                  <div>
+                    <p className="text-xs font-bold text-violet-900 dark:text-violet-100">
+                      Use Peanut on more devices
+                    </p>
+                    <p className="mt-1 text-[11px] leading-5 text-violet-500 dark:text-violet-300">
+                      Create an optional account to enable secure cloud sync
+                      later.
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthMode("signIn");
+                      setError("");
+                    }}
+                    className="rounded-xl border border-violet-200 bg-white px-4 py-2 text-xs font-semibold text-violet-700 dark:border-violet-700 dark:bg-violet-900 dark:text-violet-100"
+                  >
+                    Sign in
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthMode("signUp");
+                      setError("");
+                    }}
+                    className="rounded-xl bg-violet-700 px-4 py-2 text-xs font-bold text-white hover:bg-violet-800"
+                  >
+                    Create account
+                  </button>
+                </div>
+              </div>
+            )}
+            <ProfileField
+              icon={<UserRound size={15} />}
+              label="Name"
+              value={profile.name}
+              onChange={(value) =>
+                setProfile((current) => ({ ...current, name: value }))
+              }
+              placeholder="Your name"
+            />
+            <ProfileField
+              icon={<Briefcase size={15} />}
+              label="Role or title"
+              value={profile.role}
+              onChange={(value) =>
+                setProfile((current) => ({ ...current, role: value }))
+              }
+              placeholder="e.g. Developer, Student"
+            />
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-semibold text-violet-600 dark:text-violet-300">
+                About me
+              </span>
+              <textarea
+                value={profile.bio}
+                onChange={(event) =>
+                  setProfile((current) => ({
+                    ...current,
+                    bio: event.target.value,
+                  }))
+                }
+                placeholder="A few details about you…"
+                className="min-h-24 w-full resize-none rounded-xl border border-violet-200 bg-white px-3 py-2.5 text-sm text-violet-900 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 dark:border-violet-700 dark:bg-violet-950 dark:text-violet-100"
+              />
+            </label>
+            {error && (
+              <p className="rounded-xl bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-950/40 dark:text-red-300">
+                {error}
+              </p>
+            )}
+            {saved && (
+              <p className="rounded-xl bg-teal-50 px-3 py-2 text-xs font-semibold text-teal-700 dark:bg-teal-950/40 dark:text-teal-300">
+                Profile saved.
+              </p>
+            )}
+            <div className="flex items-center justify-between gap-2 pt-1">
+              {session ? (
+                <button
+                  type="button"
+                  disabled={authBusy}
+                  onClick={() => setDeleteOpen(true)}
+                  className="flex items-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-semibold text-red-500 hover:bg-red-50 disabled:opacity-40 dark:text-red-300 dark:hover:bg-red-950/40"
+                >
+                  <Trash2 size={14} />
+                  Delete account
+                </button>
+              ) : (
+                <span />
+              )}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="rounded-xl border border-violet-200 px-4 py-2.5 text-xs font-semibold text-violet-500 dark:border-violet-700 dark:text-violet-300"
+                >
+                  Close
+                </button>
+                <button
+                  disabled={saving}
+                  className="flex items-center gap-2 rounded-xl bg-coral-500 px-4 py-2.5 text-xs font-bold text-white hover:bg-coral-600 disabled:opacity-50"
+                >
+                  <Save size={14} />
+                  {saving ? "Saving…" : "Save profile"}
+                </button>
+              </div>
+            </div>
+          </form>
+        )}
+      </section>
+      {deleteOpen && (
+        <DeleteAccountDialog
+          onClose={() => setDeleteOpen(false)}
+          onDelete={deleteAccount}
+        />
+      )}
+    </div>
+  );
 }
 
-function ProfileField({ icon, label, value, onChange, type = 'text', placeholder, autoFocus = false }: { icon: ReactNode; label: string; value: string; onChange: (value: string) => void; type?: string; placeholder?: string; autoFocus?: boolean }) {
+function DeleteAccountDialog({
+  onClose,
+  onDelete,
+}: {
+  onClose: () => void;
+  onDelete: (password: string) => Promise<void>;
+}) {
+  const [password, setPassword] = useState("");
+  const [confirmation, setConfirmation] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const canDelete = password.length >= 10 && confirmation === "DELETE";
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    if (!canDelete || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      await onDelete(password);
+    } catch (reason) {
+      setError((reason as Error).message);
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-violet-950/60 p-4 backdrop-blur-sm">
+      <button
+        type="button"
+        aria-label="Cancel account deletion"
+        onClick={onClose}
+        className="absolute inset-0 cursor-default"
+      />
+      <form
+        onSubmit={submit}
+        className="relative w-full max-w-md rounded-[28px] border border-red-200 bg-[#fffaf3] p-6 shadow-2xl dark:border-red-900 dark:bg-[#211836]"
+      >
+        <div className="mb-5 flex items-start gap-3">
+          <span className="rounded-2xl bg-red-100 p-3 text-red-600 dark:bg-red-950/50 dark:text-red-300">
+            <AlertTriangle size={22} />
+          </span>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-red-500">
+              Permanent action
+            </p>
+            <h2 className="font-display text-2xl font-bold text-violet-950 dark:text-white">
+              Delete your account?
+            </h2>
+          </div>
+        </div>
+        <p className="mb-5 text-sm leading-6 text-violet-700 dark:text-violet-200">
+          This permanently deletes your documents, images, notes, tasks,
+          folders, categories and cloud files. This cannot be undone.
+        </p>
+        <div className="space-y-4">
+          <ProfileField
+            icon={<KeyRound size={15} />}
+            label="Current password"
+            value={password}
+            onChange={setPassword}
+            type="password"
+            placeholder="Enter your password"
+            autoFocus
+          />
+          <ProfileField
+            icon={<Trash2 size={15} />}
+            label='Type "DELETE" to confirm'
+            value={confirmation}
+            onChange={setConfirmation}
+            placeholder="DELETE"
+          />
+        </div>
+        {error && (
+          <p className="mt-4 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-950/40 dark:text-red-300">
+            {error}
+          </p>
+        )}
+        <div className="mt-6 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={busy}
+            className="rounded-xl border border-violet-200 px-4 py-2.5 text-xs font-semibold text-violet-600 disabled:opacity-40 dark:border-violet-700 dark:text-violet-200"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={!canDelete || busy}
+            className="flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Trash2 size={14} />
+            {busy ? "Deleting…" : "Delete account"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function ProfileField({
+  icon,
+  label,
+  value,
+  onChange,
+  type = "text",
+  placeholder,
+  autoFocus = false,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: string;
+  placeholder?: string;
+  autoFocus?: boolean;
+}) {
   const [passwordVisible, setPasswordVisible] = useState(false);
-  const isPassword = type === 'password';
-  return <label className="block"><span className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-violet-600 dark:text-violet-300">{icon}{label}</span><span className="relative block"><input type={isPassword && passwordVisible ? 'text' : type} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} autoFocus={autoFocus} className={`h-11 w-full rounded-xl border border-violet-200 bg-white px-3 text-sm text-violet-900 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 dark:border-violet-700 dark:bg-violet-950 dark:text-violet-100 ${isPassword ? 'pr-11' : ''}`} />{isPassword && <button type="button" onClick={() => setPasswordVisible((visible) => !visible)} aria-label={passwordVisible ? 'Hide password' : 'Show password'} title={passwordVisible ? 'Hide password' : 'Show password'} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-violet-400 hover:bg-violet-50 hover:text-violet-700 dark:hover:bg-violet-900 dark:hover:text-violet-200">{passwordVisible ? <EyeOff size={16} /> : <Eye size={16} />}</button>}</span></label>;
+  const isPassword = type === "password";
+  return (
+    <label className="block">
+      <span className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-violet-600 dark:text-violet-300">
+        {icon}
+        {label}
+      </span>
+      <span className="relative block">
+        <input
+          type={isPassword && passwordVisible ? "text" : type}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
+          autoFocus={autoFocus}
+          className={`h-11 w-full rounded-xl border border-violet-200 bg-white px-3 text-sm text-violet-900 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 dark:border-violet-700 dark:bg-violet-950 dark:text-violet-100 ${isPassword ? "pr-11" : ""}`}
+        />
+        {isPassword && (
+          <button
+            type="button"
+            onClick={() => setPasswordVisible((visible) => !visible)}
+            aria-label={passwordVisible ? "Hide password" : "Show password"}
+            title={passwordVisible ? "Hide password" : "Show password"}
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-violet-400 hover:bg-violet-50 hover:text-violet-700 dark:hover:bg-violet-900 dark:hover:text-violet-200"
+          >
+            {passwordVisible ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
+        )}
+      </span>
+    </label>
+  );
 }

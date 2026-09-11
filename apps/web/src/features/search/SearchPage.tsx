@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { SearchResult } from '@peanut/contracts';
 import { ArrowUpRight, FileText, FolderOpen, Image as ImageIcon, PlugZap, Search, Sparkles, StickyNote } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -10,9 +10,8 @@ import { api, ApiError } from '../../lib/api';
 import { formatDate } from '../../lib/format';
 
 export function SearchPage() {
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
   const query = params.get('q') ?? '';
-  const [input, setInput] = useState(query);
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +33,6 @@ export function SearchPage() {
     || filter === 'categories' && result.entityType === 'category'), [filter, results]);
 
   useEffect(() => {
-    setInput(query);
     if (!query) {
       setResults([]);
       return;
@@ -47,27 +45,9 @@ export function SearchPage() {
       .finally(() => setLoading(false));
   }, [query]);
 
-  function submit(event: FormEvent) {
-    event.preventDefault();
-    const next = input.trim();
-    setParams(next ? { q: next } : {});
-  }
-
   return (
     <div>
-      <PageHeader eyebrow="Retrieval" title="Search" description="Search documents, notes, integrations, folder names and metadata with SQLite FTS5." />
-
-      <form onSubmit={submit} className="relative max-w-3xl">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-        <input
-          value={input}
-          onChange={(event) => setInput(event.target.value)}
-          placeholder='Try: "Bonus API" AND wallet NOT legacy'
-          className="h-12 w-full rounded-xl border border-slate-300 bg-white pl-11 pr-24 text-sm text-slate-800 shadow-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-          autoFocus
-        />
-        <button className="absolute right-2 top-2 rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800">Search</button>
-      </form>
+      <PageHeader eyebrow="Retrieval" title="Search" description="Search documents, notes, integrations, folder names and metadata from the search bar above." />
 
       <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-[11px] text-slate-400">
         <span><code className="text-slate-600">"exact phrase"</code> phrase</span>

@@ -233,10 +233,10 @@ export function IntegrationsPage() {
 
   return (
     <div>
-      <section className="relative mb-5 min-h-[190px] overflow-hidden rounded-[28px] px-6 py-7 sm:px-8">
-        <div className="integrations-title-blob" aria-hidden="true" />
-        <div className="absolute right-[10%] top-8 hidden h-16 w-16 rounded-full bg-teal-200/80 sm:block dark:bg-teal-500/30" aria-hidden="true" />
-        <div className="absolute right-[4%] top-14 hidden text-violet-500 sm:block dark:text-violet-300" aria-hidden="true"><Sparkles size={28} /></div>
+      <section className="relative mb-4 min-h-40 px-5 py-5 sm:px-7">
+        <div className="tasks-title-blob" aria-hidden="true" />
+        <div className="absolute right-28 top-4 hidden h-14 w-14 rounded-full bg-teal-200 shadow-lg xl:block" aria-hidden="true" />
+        <Sparkles className="absolute right-12 top-12 hidden text-white xl:block" size={20} aria-hidden="true" />
         <div className="relative z-10 max-w-xl">
           <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-coral-500">Connected workspace</p>
           <h1 className="mt-1 font-serif text-4xl font-bold tracking-tight text-violet-950 sm:text-5xl dark:text-violet-50">{selectedSpace?.name ?? 'Workspace'}</h1>
