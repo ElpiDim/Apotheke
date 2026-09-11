@@ -1,6 +1,6 @@
 import { betterAuth } from 'better-auth';
 import type { Env } from './env';
-import { sendPasswordResetEmail } from './mailjet';
+import { sendPasswordResetEmail } from './brevo';
 
 async function deleteUserFiles(files: R2Bucket, userId: string): Promise<void> {
   while (true) {
