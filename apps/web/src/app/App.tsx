@@ -9,6 +9,7 @@ import { CategoriesPage } from '../features/categories/CategoriesPage';
 import { SearchPage } from '../features/search/SearchPage';
 import { AppShell } from './AppShell';
 import { OverviewPage } from './OverviewPage';
+import { ResetPasswordPage } from '../features/auth/ResetPasswordPage';
 
 export function App() {
   return (
@@ -26,6 +27,7 @@ export function App() {
           <Route path="/categories" element={<CategoriesPage />} />
           <Route path="/categories/:categoryId" element={<CategoriesPage />} />
           <Route path="/search" element={<SearchPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
         </Routes>
       </AppShell>
     </BrowserRouter>

@@ -726,13 +726,14 @@ function ProfileModal({
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
-  const [authMode, setAuthMode] = useState<"profile" | "signIn" | "signUp">(
-    initialAuthMode,
-  );
+  const [authMode, setAuthMode] = useState<
+    "profile" | "signIn" | "signUp" | "forgot"
+  >(initialAuthMode);
   const [authName, setAuthName] = useState("");
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
   const [authBusy, setAuthBusy] = useState(false);
+  const [forgotSent, setForgotSent] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   async function loadProfile() {
@@ -781,6 +782,18 @@ function ProfileModal({
     setAuthBusy(true);
     setError("");
     try {
+      if (authMode === "forgot") {
+        const result = await authClient.requestPasswordReset({
+          email: authEmail.trim(),
+          redirectTo: `${window.location.origin}/reset-password`,
+        });
+        if (result.error)
+          throw new Error(
+            result.error.message ?? "Peanut could not send the reset email.",
+          );
+        setForgotSent(true);
+        return;
+      }
       const result =
         authMode === "signUp"
           ? await authClient.signUp.email({
@@ -873,6 +886,8 @@ function ProfileModal({
                   ? "Welcome back"
                   : authMode === "signUp"
                     ? "Create your account"
+                    : authMode === "forgot"
+                      ? "Reset your password"
                     : displayName}
               </h2>
               <p className="mt-1 text-xs text-violet-500 dark:text-violet-300">
@@ -908,22 +923,44 @@ function ProfileModal({
               placeholder="you@example.com"
               autoFocus={authMode === "signIn"}
             />
-            <ProfileField
-              icon={<LockKeyhole size={15} />}
-              label="Password"
-              value={authPassword}
-              onChange={setAuthPassword}
-              type="password"
-              placeholder="At least 10 characters"
-            />
+            {authMode !== "forgot" && (
+              <ProfileField
+                icon={<LockKeyhole size={15} />}
+                label="Password"
+                value={authPassword}
+                onChange={setAuthPassword}
+                type="password"
+                placeholder="At least 10 characters"
+              />
+            )}
+            {authMode === "signIn" && (
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMode("forgot");
+                  setForgotSent(false);
+                  setError("");
+                }}
+                className="-mt-2 block text-xs font-semibold text-violet-600 hover:text-violet-800 dark:text-violet-300"
+              >
+                Forgot password?
+              </button>
+            )}
             {error && (
               <p className="rounded-xl bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-950/40 dark:text-red-300">
                 {error}
               </p>
             )}
+            {forgotSent && (
+              <p className="rounded-xl border border-teal-200 bg-teal-50 px-3 py-2.5 text-xs leading-5 text-teal-700 dark:border-teal-800 dark:bg-teal-950/30 dark:text-teal-300">
+                If an account exists for this email, a secure reset link has
+                been sent. Check your inbox and spam folder.
+              </p>
+            )}
             <p className="text-[11px] leading-5 text-violet-400">
-              Signing in enables cloud sync later. Your current local files are
-              not uploaded automatically.
+              {authMode === "forgot"
+                ? "For your privacy, Peanut always shows the same confirmation whether or not the email is registered."
+                : "Signing in enables cloud sync later. Your current local files are not uploaded automatically."}
             </p>
             <div className="flex items-center justify-between pt-1">
               <button
@@ -939,8 +976,8 @@ function ProfileModal({
               <button
                 disabled={
                   authBusy ||
-                  authPassword.length < 10 ||
                   !authEmail.trim() ||
+                  (authMode !== "forgot" && authPassword.length < 10) ||
                   (authMode === "signUp" && !authName.trim())
                 }
                 className="flex items-center gap-2 rounded-xl bg-violet-700 px-5 py-2.5 text-xs font-bold text-white hover:bg-violet-800 disabled:opacity-40"
@@ -950,7 +987,11 @@ function ProfileModal({
                   ? "Please wait…"
                   : authMode === "signUp"
                     ? "Create account"
-                    : "Sign in"}
+                    : authMode === "forgot"
+                      ? forgotSent
+                        ? "Send again"
+                        : "Send reset link"
+                      : "Sign in"}
               </button>
             </div>
           </form>

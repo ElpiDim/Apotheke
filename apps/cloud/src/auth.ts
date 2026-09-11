@@ -1,5 +1,6 @@
 import { betterAuth } from 'better-auth';
 import type { Env } from './env';
+import { sendPasswordResetEmail } from './mailjet';
 
 async function deleteUserFiles(files: R2Bucket, userId: string): Promise<void> {
   while (true) {
@@ -10,7 +11,7 @@ async function deleteUserFiles(files: R2Bucket, userId: string): Promise<void> {
   }
 }
 
-export function createAuth(env: Env) {
+export function createAuth(env: Env, context?: ExecutionContext) {
   const trustedOrigins = env.APP_ORIGIN.split(',').map((origin) => origin.trim()).filter(Boolean);
 
   return betterAuth({
@@ -24,6 +25,13 @@ export function createAuth(env: Env) {
       requireEmailVerification: false,
       minPasswordLength: 10,
       maxPasswordLength: 128,
+      revokeSessionsOnPasswordReset: true,
+      resetPasswordTokenExpiresIn: 60 * 60,
+      sendResetPassword: async ({ user, url }) => {
+        const delivery = sendPasswordResetEmail(env, user.email, url);
+        if (context) context.waitUntil(delivery);
+        else await delivery;
+      },
     },
     user: {
       deleteUser: {
@@ -44,6 +52,7 @@ export function createAuth(env: Env) {
       customRules: {
         '/sign-in/email': { window: 60, max: 10 },
         '/sign-up/email': { window: 60, max: 5 },
+        '/request-password-reset': { window: 60, max: 3 },
       },
     },
     advanced: {

@@ -6,7 +6,8 @@
   "compatibility_flags": ["nodejs_compat"],
   "vars": {
     "BETTER_AUTH_URL": "https://peanut-api-staging.elpida-el-dimitriadou.workers.dev",
-    "APP_ORIGIN": "http://localhost:5173,http://127.0.0.1:5173,https://peanut-8e5.pages.dev"
+    "APP_ORIGIN": "http://localhost:5173,http://127.0.0.1:5173,https://peanut-8e5.pages.dev",
+    "MAILJET_FROM_EMAIL": "elpida.el.dimitriadou@gmail.com"
   },
   "r2_buckets": [
     {

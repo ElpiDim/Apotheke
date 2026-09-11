@@ -122,7 +122,7 @@ async function workspaceResponse(request: Request, env: Env, pathname: string, o
 }
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, context: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
     if (request.headers.has('Origin') && !allowedOrigin(request, env)) {
@@ -146,7 +146,7 @@ export default {
     }
 
     if (url.pathname.startsWith('/api/auth/')) {
-      return withCors(await createAuth(env).handler(request), request, env);
+      return withCors(await createAuth(env, context).handler(request), request, env);
     }
 
     if (url.pathname === '/api/health') {

@@ -32,6 +32,7 @@ import {
   updateIntegrationSpace,
 } from './integrationRepository.js';
 import { integrationPdfUpload } from './upload.js';
+import { validateStoredUpload } from '../documents/fileValidation.js';
 
 export const integrationsRouter = Router();
 
@@ -94,6 +95,12 @@ integrationsRouter.patch('/entries/:id', (request, response) => {
 integrationsRouter.post('/pdf', integrationPdfUpload.single('file'), async (request, response) => {
   const file = request.file;
   if (!file) throw new AppError(400, 'Choose a PDF file.', 'FILE_REQUIRED');
+  try {
+    await validateStoredUpload(file.path, file.size, '.pdf');
+  } catch (error) {
+    await fs.rm(file.path, { force: true });
+    throw error;
+  }
   const folderId = String(request.body.folderId ?? '');
   const description = String(request.body.description ?? '').trim().slice(0, 20_000);
   const title = String(request.body.title ?? '').trim()

@@ -10,6 +10,7 @@ import { AppError } from '../../middleware/errors.js';
 import { createDocument, findDuplicateDocument } from './documentRepository.js';
 import { getSupportedExtension, supportedDocumentTypes } from './fileTypes.js';
 import { extractDocumentText } from './textExtractor.js';
+import { validateStoredUpload } from './fileValidation.js';
 
 function parseTags(value: unknown): string[] {
   if (typeof value !== 'string' || !value.trim()) return [];
@@ -40,6 +41,12 @@ export async function importDocument(
   if (!extension) {
     await fs.rm(file.path, { force: true });
     throw new AppError(400, 'Unsupported file type.', 'UNSUPPORTED_FILE_TYPE');
+  }
+  try {
+    await validateStoredUpload(file.path, file.size, extension);
+  } catch (error) {
+    await fs.rm(file.path, { force: true });
+    throw error;
   }
 
   const defaultTitle = path.basename(file.originalname, path.extname(file.originalname));

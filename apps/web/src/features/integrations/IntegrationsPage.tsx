@@ -5,6 +5,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { api, jsonRequest } from '../../lib/api';
 import { Link, useSearchParams } from 'react-router-dom';
 import { announceWorkspaceChange, onWorkspaceChange } from '../../lib/workspaceEvents';
+import { validatePdf } from '../../lib/uploadRules';
 
 interface IntegrationWorkspace {
   spaces: IntegrationSpace[];
@@ -144,6 +145,8 @@ export function IntegrationsPage() {
     try {
       const file = form.get('file');
       if (!editingEntry && file instanceof File && file.size > 0) {
+        const issue = validatePdf(file);
+        if (issue) { setError(issue); return; }
         form.set('folderId', selectedId);
         await api('/integrations/pdf', { method: 'POST', body: form });
       } else {
@@ -209,8 +212,9 @@ export function IntegrationsPage() {
     setDragActive(false);
     const file = event.dataTransfer.files[0];
     if (!file || !selectedId) return;
-    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
-      setError('Integration folders accept PDF files only.');
+    const issue = validatePdf(file);
+    if (issue) {
+      setError(issue);
       return;
     }
     const form = new FormData();
