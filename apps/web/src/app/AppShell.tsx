@@ -770,6 +770,7 @@ function ProfileModal({
       );
       setProfile(result.profile);
       setSaved(true);
+      onClose();
     } catch (reason) {
       setError((reason as Error).message);
     } finally {
