@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import type {
   Category,
   IntegrationSpace,
@@ -36,13 +36,14 @@ import {
   KeyRound,
 } from "lucide-react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
-import { api, jsonRequest } from "../lib/api";
+import { api, apiBlob, jsonRequest } from "../lib/api";
 import {
   announceWorkspaceChange,
   onWorkspaceChange,
 } from "../lib/workspaceEvents";
 import { PiniAssistant } from "../components/PiniAssistant";
 import { CommandPalette } from "../components/CommandPalette";
+import { GuestStorageNotice } from "../components/GuestStorageNotice";
 import { announceAuthChange, authClient } from "../lib/authClient";
 
 const navItems = [
@@ -686,11 +687,18 @@ export function AppShell({ children }: { children: ReactNode }) {
       />
       <main className="pt-16 sm:ml-60">
         <div className="app-content mx-auto max-w-[1440px] p-4 sm:p-6 lg:p-8">
+          <GuestStorageNotice />
           {children}
+          <footer className="mt-10 flex flex-wrap justify-center gap-x-5 gap-y-2 border-t border-violet-100 py-5 text-xs text-violet-500 dark:border-violet-800 dark:text-violet-300">
+            <Link to="/privacy">Privacy Policy</Link>
+            <Link to="/terms">Terms of use</Link>
+            <a href="mailto:peanutsupport@gmail.com">Support</a>
+          </footer>
         </div>
       </main>
       <PiniAssistant />
       <CommandPalette />
+      <BackgroundTextIndexer />
       {profileOpen && (
         <ProfileModal
           initialAuthMode={profileMode}
@@ -699,6 +707,51 @@ export function AppShell({ children }: { children: ReactNode }) {
       )}
     </div>
   );
+}
+
+function BackgroundTextIndexer() {
+  const running = useRef(false);
+
+  useEffect(() => {
+    let active = true;
+    let timer = 0;
+    const run = async () => {
+      if (!active || running.current) return;
+      running.current = true;
+      try {
+        for (let index = 0; index < 50 && active; index += 1) {
+          const result = await api<{ indexed: boolean }>("/documents/reindex-stored", { method: "POST" });
+          if (!result.indexed) break;
+          await new Promise((resolve) => window.setTimeout(resolve, 40));
+        }
+        const { documents } = await api<{ documents: Array<{ id: string; originalFilename: string }> }>("/documents/pending-text");
+        for (const document of documents) {
+          if (!active) break;
+          try {
+            const file = await apiBlob(`/documents/${document.id}/file`);
+            const { extractFileText } = await import("../features/documents/extractText");
+            const extractedText = await extractFileText(file, document.originalFilename);
+            if (active) await api(`/documents/${document.id}/extracted-text`, jsonRequest("PATCH", { extractedText }));
+          } catch {
+            // Keep indexing the remaining files if one document is unreadable.
+          }
+        }
+      } catch {
+        // Authentication or connectivity may not be ready yet; a later workspace event retries.
+      } finally {
+        running.current = false;
+      }
+    };
+    const schedule = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => void run(), 1_000);
+    };
+    schedule();
+    const unsubscribe = onWorkspaceChange((resources) => { if (resources.includes("documents")) schedule(); });
+    return () => { active = false; window.clearTimeout(timer); unsubscribe(); };
+  }, []);
+
+  return null;
 }
 
 const emptyProfile: UserProfile = {
@@ -835,7 +888,6 @@ function ProfileModal({
       throw new Error(
         result.error.message ?? "Peanut could not delete your account.",
       );
-    localStorage.removeItem("peanut-guest-workspace");
     announceAuthChange();
     announceWorkspaceChange(
       "notes",
@@ -959,9 +1011,10 @@ function ProfileModal({
               </p>
             )}
             <p className="text-[11px] leading-5 text-violet-400">
+              {authMode === "signUp" && <span className="mb-2 block">Before creating an account, please read the <Link to="/terms" target="_blank" rel="noopener noreferrer" className="underline">Terms of Use</Link> and <Link to="/privacy" target="_blank" rel="noopener noreferrer" className="underline">Privacy Policy</Link>.</span>}
               {authMode === "forgot"
                 ? "For your privacy, Peanut always shows the same confirmation whether or not the email is registered."
-                : "Signing in enables cloud sync later. Your current local files are not uploaded automatically."}
+                : "Signing in opens your cloud workspace. Your current local files are not uploaded automatically."}
             </p>
             <div className="flex items-center justify-between pt-1">
               <button
@@ -1019,8 +1072,7 @@ function ProfileModal({
                       Use Peanut on more devices
                     </p>
                     <p className="mt-1 text-[11px] leading-5 text-violet-500 dark:text-violet-300">
-                      Create an optional account to enable secure cloud sync
-                      later.
+                      Create an optional account to use your cloud workspace on more devices.
                     </p>
                   </div>
                 </div>

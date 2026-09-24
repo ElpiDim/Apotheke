@@ -32,7 +32,7 @@ export function ResetPasswordPage() {
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-8rem)] items-center justify-center px-4 py-10">
+    <div className="flex min-h-dvh items-center justify-center bg-[#fffaf3] px-4 py-10 dark:bg-[#171329]">
       <section className="w-full max-w-md overflow-hidden rounded-[28px] border border-violet-200 bg-white shadow-[0_20px_60px_rgba(75,38,135,0.14)] dark:border-violet-700 dark:bg-[#211b35]">
         <header className="bg-gradient-to-r from-amber-50 via-orange-50 to-violet-100 px-6 py-6 dark:from-amber-950/30 dark:via-[#312039] dark:to-violet-950">
           <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-coral-600">Peanut security</p>

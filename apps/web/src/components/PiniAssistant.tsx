@@ -21,7 +21,10 @@ export function PiniAssistant() {
   const [position, setPosition] = useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem('pini-position') ?? '') as { x?: number; y?: number };
-      if (Number.isFinite(saved.x) && Number.isFinite(saved.y)) return { x: saved.x!, y: saved.y! };
+      if (Number.isFinite(saved.x) && Number.isFinite(saved.y)) return {
+        x: Math.min(Math.max(8, saved.x!), Math.max(8, window.innerWidth - 80)),
+        y: Math.min(Math.max(8, saved.y!), Math.max(8, window.innerHeight - 98)),
+      };
     } catch { /* Use the default position. */ }
     return { x: Math.max(12, window.innerWidth - 96), y: Math.max(12, window.innerHeight - 114) };
   });
@@ -33,6 +36,7 @@ export function PiniAssistant() {
       x: Math.min(Math.max(8, current.x), Math.max(8, window.innerWidth - 80)),
       y: Math.min(Math.max(8, current.y), Math.max(8, window.innerHeight - 98)),
     }));
+    keepInsideWindow();
     window.addEventListener('resize', keepInsideWindow);
     return () => window.removeEventListener('resize', keepInsideWindow);
   }, []);

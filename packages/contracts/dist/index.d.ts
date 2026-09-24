@@ -1,4 +1,5 @@
 import { z } from 'zod';
+export { searchRecords, type SearchRow } from './search.js';
 export declare const entityIdSchema: z.ZodString;
 export declare const tagSchema: z.ZodObject<{
     id: z.ZodString;
@@ -76,6 +77,9 @@ export declare const searchResultSchema: z.ZodObject<{
     entityId: z.ZodString;
     title: z.ZodString;
     snippet: z.ZodString;
+    snippets: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    matchCount: z.ZodOptional<z.ZodNumber>;
+    matchPages: z.ZodOptional<z.ZodArray<z.ZodNullable<z.ZodNumber>>>;
     rank: z.ZodNumber;
     category: z.ZodNullable<z.ZodString>;
     tags: z.ZodArray<z.ZodString>;
@@ -96,6 +100,9 @@ export declare const searchResponseSchema: z.ZodObject<{
         entityId: z.ZodString;
         title: z.ZodString;
         snippet: z.ZodString;
+        snippets: z.ZodOptional<z.ZodArray<z.ZodString>>;
+        matchCount: z.ZodOptional<z.ZodNumber>;
+        matchPages: z.ZodOptional<z.ZodArray<z.ZodNullable<z.ZodNumber>>>;
         rank: z.ZodNumber;
         category: z.ZodNullable<z.ZodString>;
         tags: z.ZodArray<z.ZodString>;

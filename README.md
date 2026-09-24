@@ -1,10 +1,14 @@
 # Peanut
 
-Peanut is a playful, local-first personal workspace for documents, images, notes, tasks and organized knowledge. It uses strict TypeScript, explicit module boundaries, SQLite/FTS5 search and private file storage on the local filesystem.
+Peanut is a playful personal workspace for documents, images, notes, tasks and organized knowledge. Guests use browser-local IndexedDB storage; signed-in users use a separate Cloudflare workspace (D1 metadata and R2 files). Guest files are not automatically uploaded when signing in.
 
 ## Privacy
 
-Peanut is local-first. Its API binds to `127.0.0.1` by default, workspace metadata lives in SQLite and imported files remain in the private local data directory. Cloudflare R2 support is optional and currently used only for a storage connection check; there is no telemetry, advertising or external AI integration.
+Guest content stays in IndexedDB on the current browser and origin. Clearing site data, private browsing, browser eviction or changing domains can remove access to it. Keep original copies of important files. The web page and authentication checks still require network access; this is not a complete offline/PWA implementation. Signed-in content is stored in Cloudflare; Brevo delivers password-reset emails. Pini uses extractive search, not an external AI provider.
+
+Browsers with the old `peanut-guest-workspace` key show an explicit option to copy their legacy cloud guest data locally. Import only reads cloud data, downloads attachments sequentially, and commits the complete copy in one IndexedDB transaction. Failed imports leave the local workspace unchanged. Originals and the old guest key are retained; cloud cleanup is a separate operation. Browser-local and signed-in cloud workspaces remain independent.
+
+The legacy Express/SQLite service remains in the repository for existing local installations. Its data directory is not automatically imported into the new browser guest workspace and must not be deleted during migration.
 
 ## Requirements
 

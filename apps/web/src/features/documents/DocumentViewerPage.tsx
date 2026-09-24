@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { DocumentRecord } from '@peanut/contracts';
-import { ArrowLeft, Download, FileSearch, FileText, Image as ImageIcon, Tag, Trash2 } from 'lucide-react';
+import { ArrowLeft, Download, FileText, Image as ImageIcon, Tag, Trash2 } from 'lucide-react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api, apiBlob } from '../../lib/api';
 import { formatBytes, formatDate } from '../../lib/format';
 import { announceWorkspaceChange } from '../../lib/workspaceEvents';
+import { PdfViewer } from './PdfViewer';
 
 interface ViewerResponse {
   document: DocumentRecord;
@@ -16,10 +17,12 @@ export function DocumentViewerPage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const searchQuery = params.get('q')?.trim() ?? '';
+  const selectedMatch = Math.max(0, Number.parseInt(params.get('match') ?? '0', 10) || 0);
+  const selectedPage = Math.max(0, Number.parseInt(params.get('page') ?? '0', 10) || 0);
   const [data, setData] = useState<ViewerResponse | null>(null);
   const [error, setError] = useState('');
   const [fileUrl, setFileUrl] = useState('');
-  const [pdfMode, setPdfMode] = useState<'pdf' | 'text'>(() => searchQuery ? 'text' : 'pdf');
+  const [fileBlob, setFileBlob] = useState<Blob | null>(null);
 
   useEffect(() => {
     void api<ViewerResponse>(`/documents/${documentId}`)
@@ -32,11 +35,13 @@ export function DocumentViewerPage() {
     void apiBlob(`/documents/${documentId}/file`)
       .then((blob) => {
         objectUrl = URL.createObjectURL(blob);
+        setFileBlob(blob);
         setFileUrl(objectUrl);
       })
       .catch((reason: Error) => setError(reason.message));
     return () => {
       if (objectUrl) URL.revokeObjectURL(objectUrl);
+      setFileBlob(null);
     };
   }, [documentId]);
 
@@ -71,16 +76,15 @@ export function DocumentViewerPage() {
 
       <div className="grid min-h-[calc(100vh-12rem)] grid-cols-1 lg:grid-cols-[minmax(0,1fr)_260px]">
         <main className="relative min-h-[640px] bg-violet-950/5 dark:bg-[#171329]">
-          {isPdf && <div className="sticky top-2 z-10 mx-auto flex w-fit rounded-full border border-violet-100 bg-white/90 p-1 shadow-md backdrop-blur dark:border-violet-700 dark:bg-[#211b35]/90"><button onClick={() => setPdfMode('pdf')} className={`rounded-full px-3 py-1.5 text-[10px] font-semibold ${pdfMode === 'pdf' ? 'bg-violet-600 text-white' : 'text-violet-400'}`}>PDF</button><button onClick={() => setPdfMode('text')} className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-semibold ${pdfMode === 'text' ? 'bg-violet-600 text-white' : 'text-violet-400'}`}><FileSearch size={12} /> Searchable text</button></div>}
-          {!fileUrl ? <div className="flex min-h-[640px] items-center justify-center text-sm text-violet-400">Loading file…</div> : isImage ? (
+          {!fileUrl || !fileBlob ? <div className="flex min-h-[640px] items-center justify-center text-sm text-violet-400">Loading file…</div> : isImage ? (
             <div className="flex min-h-[640px] items-center justify-center p-5 sm:p-8"><img src={fileUrl} alt={document.title} className="max-h-[calc(100vh-15rem)] max-w-full rounded-xl object-contain shadow-[0_16px_50px_rgba(35,24,75,0.2)]" /></div>
-          ) : isPdf && pdfMode === 'pdf' ? (
-            <iframe title={document.title} src={fileUrl} className="h-full min-h-[640px] w-full border-0 bg-slate-700" />
+          ) : isPdf ? (
+            <PdfViewer file={fileBlob} initialPage={selectedPage || 1} title={document.title} />
           ) : (
             <div className="mx-auto my-6 min-h-[600px] max-w-4xl rounded-lg bg-white px-7 py-9 text-sm leading-7 text-violet-900 shadow-[0_8px_30px_rgba(41,31,85,0.12)] dark:bg-[#28213e] dark:text-violet-100 sm:px-12">
               <h2 className="mb-7 font-serif text-2xl font-semibold">{document.title}</h2>
               {searchQuery && <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">Highlighted matches for <strong>“{searchQuery}”</strong></div>}
-              <pre className="whitespace-pre-wrap break-words font-sans"><HighlightedText text={extractedText || 'No readable text was extracted from this document.'} query={searchQuery} /></pre>
+              <pre className="whitespace-pre-wrap break-words font-sans"><HighlightedText text={extractedText || 'No readable text was extracted from this document.'} query={searchQuery} selectedMatch={selectedMatch} /></pre>
             </div>
           )}
         </main>
@@ -99,7 +103,12 @@ function Detail({ label, value }: { label: string; value: string }) {
   return <div><dt className="text-[10px] font-semibold uppercase tracking-wide text-violet-400">{label}</dt><dd className="mt-1 break-words font-medium text-violet-800 dark:text-violet-200">{value}</dd></div>;
 }
 
-function HighlightedText({ text, query }: { text: string; query: string }) {
+function HighlightedText({ text, query, selectedMatch }: { text: string; query: string; selectedMatch: number }) {
+  const matches = useRef<Array<HTMLElement | null>>([]);
+  useEffect(() => {
+    const target = matches.current[selectedMatch];
+    if (target) window.setTimeout(() => target.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
+  }, [query, selectedMatch, text]);
   if (!query) return text;
   const terms = Array.from(query.matchAll(/"([^"]+)"|([^\s]+)/g))
     .map((match) => ({ value: (match[1] ?? match[2] ?? '').trim(), exact: Boolean(match[1]) }))
@@ -111,7 +120,10 @@ function HighlightedText({ text, query }: { text: string; query: string }) {
   });
   const matcher = new RegExp(`(${escaped.join('|')})`, 'giu');
   const matchPart = new RegExp(`^(?:${escaped.join('|')})$`, 'iu');
-  return text.split(matcher).map((part, index) => matchPart.test(part)
-    ? <mark key={index} className="rounded bg-amber-200 px-0.5 text-violet-950 dark:bg-amber-500/70 dark:text-white">{part}</mark>
-    : part);
+  let matchIndex = 0;
+  return text.split(matcher).map((part, index) => {
+    if (!matchPart.test(part)) return part;
+    const currentMatch = matchIndex++;
+    return <mark key={index} ref={(element) => { matches.current[currentMatch] = element; }} className={`rounded px-0.5 text-violet-950 dark:text-white ${currentMatch === selectedMatch ? 'bg-coral-300 ring-2 ring-coral-400 dark:bg-coral-600' : 'bg-amber-200 dark:bg-amber-500/70'}`}>{part}</mark>;
+  });
 }

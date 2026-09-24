@@ -10,11 +10,16 @@ import { SearchPage } from '../features/search/SearchPage';
 import { AppShell } from './AppShell';
 import { OverviewPage } from './OverviewPage';
 import { ResetPasswordPage } from '../features/auth/ResetPasswordPage';
+import { LegalPage } from '../features/legal/LegalPage';
 
 export function App() {
   return (
     <BrowserRouter>
-      <AppShell>
+      <Routes>
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/privacy" element={<LegalPage kind="privacy" />} />
+        <Route path="/terms" element={<LegalPage kind="terms" />} />
+        <Route path="/*" element={<AppShell>
         <Routes>
           <Route path="/" element={<OverviewPage />} />
           <Route path="/documents" element={<DocumentsPage />} />
@@ -27,9 +32,9 @@ export function App() {
           <Route path="/categories" element={<CategoriesPage />} />
           <Route path="/categories/:categoryId" element={<CategoriesPage />} />
           <Route path="/search" element={<SearchPage />} />
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
         </Routes>
-      </AppShell>
+        </AppShell>} />
+      </Routes>
     </BrowserRouter>
   );
 }

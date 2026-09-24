@@ -23,3 +23,19 @@ export function validatePdf(file: File): string | null {
   if (file.size > MAX_DOCUMENT_BYTES) return 'PDF files can be up to 50 MB.';
   return null;
 }
+
+export async function validateLocalFileContents(file: File): Promise<void> {
+  const extension = file.name.split('.').pop()?.toLowerCase() ?? '';
+  const bytes = new Uint8Array(await file.slice(0, 32).arrayBuffer());
+  const ascii = new TextDecoder('latin1').decode(bytes);
+  const starts = (signature: number[]) => signature.every((value, index) => bytes[index] === value);
+  const valid = extension === 'pdf' ? ascii.startsWith('%PDF-')
+    : extension === 'docx' ? starts([0x50, 0x4b, 0x03, 0x04])
+      : ['txt', 'md', 'markdown'].includes(extension) ? !bytes.includes(0)
+        : ['jpg', 'jpeg'].includes(extension) ? starts([0xff, 0xd8, 0xff])
+          : extension === 'png' ? starts([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+            : extension === 'gif' ? ascii.startsWith('GIF87a') || ascii.startsWith('GIF89a')
+              : extension === 'webp' ? ascii.startsWith('RIFF') && ascii.slice(8, 12) === 'WEBP'
+                : extension === 'avif' ? ascii.slice(4, 8) === 'ftyp' && /avif|avis/u.test(ascii.slice(8, 20)) : false;
+  if (!valid) throw new Error('The file contents do not match its extension.');
+}

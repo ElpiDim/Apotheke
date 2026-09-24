@@ -38,6 +38,7 @@ export function OverviewPage() {
       title: document.title,
       date: document.updatedAt,
       meta: document.category?.name ?? document.currentVersion.originalFilename,
+      to: `/documents/${document.id}`,
     })),
     ...state.notes.map((note) => ({
       id: note.id,
@@ -45,6 +46,7 @@ export function OverviewPage() {
       title: note.title,
       date: note.updatedAt,
       meta: note.category?.name ?? 'Uncategorized',
+      to: `/notes?note=${note.id}`,
     })),
   ].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 4);
 
@@ -86,12 +88,12 @@ export function OverviewPage() {
           ) : (
             <div className="divide-y divide-violet-100 dark:divide-violet-800">
               {recent.map((item) => (
-                <div key={`${item.kind}-${item.id}`} className="group flex items-center gap-3 py-3.5">
+                <Link key={`${item.kind}-${item.id}`} to={item.to} className="group flex items-center gap-3 rounded-xl px-2 py-3.5 transition hover:bg-violet-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 dark:hover:bg-violet-900/40">
                   <div className="rounded-xl bg-violet-100 p-2.5 text-violet-600 dark:bg-violet-900 dark:text-violet-300">{item.kind === 'Document' ? <FileText size={15} /> : <StickyNote size={15} />}</div>
                   <div className="min-w-0 flex-1"><p className="truncate text-[13px] font-semibold text-violet-900 dark:text-violet-100">{item.title}</p><p className="mt-0.5 truncate text-[11px] text-violet-400">{item.kind} · {item.meta}</p></div>
                   <span className="hidden text-[10px] text-violet-400 sm:block">{formatDate(item.date)}</span>
                   <Star size={14} className="text-violet-300 transition group-hover:fill-amber-300 group-hover:text-amber-400" />
-                </div>
+                </Link>
               ))}
             </div>
           )}

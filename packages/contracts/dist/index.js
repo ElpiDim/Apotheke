@@ -1,4 +1,5 @@
 import { z } from 'zod';
+export { searchRecords } from './search.js';
 export const entityIdSchema = z.string().uuid();
 export const tagSchema = z.object({
     id: entityIdSchema,
@@ -52,6 +53,9 @@ export const searchResultSchema = z.object({
     entityId: entityIdSchema,
     title: z.string(),
     snippet: z.string(),
+    snippets: z.array(z.string()).optional(),
+    matchCount: z.number().int().nonnegative().optional(),
+    matchPages: z.array(z.number().int().positive().nullable()).optional(),
     rank: z.number(),
     category: z.string().nullable(),
     tags: z.array(z.string()),

@@ -67,6 +67,17 @@ export function NotesPage() {
     setParams(next, { replace: true });
   }, [params, setParams]);
 
+  useEffect(() => {
+    const noteId = params.get('note');
+    if (!noteId) return;
+    const note = notes.find((item) => item.id === noteId);
+    if (!note) return;
+    selectNote(note);
+    const next = new URLSearchParams(params);
+    next.delete('note');
+    setParams(next, { replace: true });
+  }, [notes, params, setParams]);
+
   function closeEditor() {
     setEditorOpen(false);
     setError(null);

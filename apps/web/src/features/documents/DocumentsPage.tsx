@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, FilePlus2, FileText, Image as ImageIcon, Plu
 import { Link, useSearchParams } from 'react-router-dom';
 import { EmptyState } from '../../components/EmptyState';
 import { ApiImage } from '../../components/ApiImage';
-import { api, apiBlob, ApiError, jsonRequest } from '../../lib/api';
+import { api, ApiError } from '../../lib/api';
 import { formatBytes, formatDate } from '../../lib/format';
 import { announceWorkspaceChange, onWorkspaceChange } from '../../lib/workspaceEvents';
 import { validateUploadSelection } from '../../lib/uploadRules';
@@ -57,25 +57,6 @@ export function DocumentsPage({ initialFilter = 'all' }: { initialFilter?: FileF
     window.addEventListener('focus', refreshOnFocus);
     return () => { unsubscribe(); window.removeEventListener('focus', refreshOnFocus); };
   }, [load]);
-
-  useEffect(() => {
-    if (loading) return;
-    const searchable = documents.filter((document) => ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'].includes(document.currentVersion.mimeType));
-    if (searchable.length === 0) return;
-    void api<{ documents: Array<{ id: string; originalFilename: string }> }>('/documents/pending-text')
-      .then(async ({ documents: pending }) => {
-        for (const document of pending) {
-          try {
-            const file = await apiBlob(`/documents/${document.id}/file`);
-            const extractedText = await extractFileTextLazy(file, document.originalFilename);
-            await api(`/documents/${document.id}/extracted-text`, jsonRequest('PATCH', { extractedText }));
-          } catch {
-            // A single unreadable file must not interrupt the library or other files.
-          }
-        }
-      })
-      .catch(() => undefined);
-  }, [documents, loading]);
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase();
