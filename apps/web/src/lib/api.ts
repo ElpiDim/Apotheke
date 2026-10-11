@@ -4,7 +4,7 @@ import { localApi, localBlob } from './localWorkspace';
 const retryableStatuses = new Set([502, 503, 504]);
 
 function delay(milliseconds: number): Promise<void> {
-  return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+  return new Promise((resolve) => globalThis.setTimeout(resolve, milliseconds));
 }
 
 async function getReliableSession() {
